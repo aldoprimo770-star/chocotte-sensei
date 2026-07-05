@@ -1,7 +1,7 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"main": ".open-next/worker.js",
-	"name": "chocotte-sensei",
+	"name": "chocotte-sensei2",
 	"workers_dev": true,
 	"preview_urls": true,
 	"compatibility_date": "2024-09-23",
@@ -13,7 +13,7 @@
 	"services": [
 		{
 			"binding": "WORKER_SELF_REFERENCE",
-			"service": "chocotte-sensei"
+			"service": "chocotte-sensei2"
 		}
 	]
 }
