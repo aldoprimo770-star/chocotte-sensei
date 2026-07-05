@@ -1,0 +1,22 @@
+# Cloudflare Workers デプロイ用 wrangler 設定（参考）
+# 本番用は wrangler.jsonc を使用してください（OpenNext が生成・管理）。
+# 使い方:
+#   1. npm install @opennextjs/cloudflare wrangler --save-dev
+#   2. open-next.config.ts / wrangler.jsonc がプロジェクトルートにあることを確認
+#   3. README.md のデプロイ手順に従う
+
+name = "chocotte-sensei"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Cloudflare Pages / Workers でのメイン設定
+# main = ".open-next/worker.js"
+
+[vars]
+# 非シークレットの環境変数（シークレットは wrangler secret put または Dashboard で設定）
+# AUTH_URL = "https://chocotte-sensei.com"
+
+# シークレットの設定例（CLI）:
+#   wrangler secret put DATABASE_URL
+#   wrangler secret put AUTH_SECRET
+#   wrangler secret put PAYPAL_CLIENT_SECRET

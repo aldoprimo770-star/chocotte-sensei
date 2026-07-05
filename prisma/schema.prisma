@@ -1,0 +1,457 @@
+// ============================================================
+// Prisma スキーマ — チョコット先生
+// ------------------------------------------------------------
+// 仕様書に基づく本設計。認証は Credentials(メール/パスワード) +
+// JWT 方式を採用するため、NextAuth のアダプタ用テーブル
+// (Account / Session) は不要としています。
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Enum 定義
+// ============================================================
+
+/// ユーザーロール（生徒 / 先生 / 管理者）
+enum UserRole {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+/// 先生プロフィールの審査ステータス
+enum ProfileStatus {
+  DRAFT // 下書き（作成途中）
+  PENDING // 公開申請中（管理者の承認待ち）
+  APPROVED // 承認済み
+  REJECTED // 却下
+}
+
+/// 対応レベル（レッスンで対応できる習熟度）
+enum SkillLevel {
+  BEGINNER // 初級
+  INTERMEDIATE // 中級
+  ADVANCED // 上級
+}
+
+/// 対象年齢層
+enum TargetAge {
+  PRESCHOOL // 未就学児
+  ELEMENTARY // 小学生
+  JUNIOR_HIGH // 中学生
+  HIGH_SCHOOL // 高校生
+  UNIVERSITY // 大学生・専門学生
+  ADULT // 社会人・一般
+  SENIOR // シニア
+}
+
+/// レビューの審査ステータス
+enum ReviewStatus {
+  PENDING // 審査待ち
+  APPROVED // 公開
+  REJECTED // 非公開
+}
+
+/// 決済方法
+enum PaymentMethod {
+  PAYPAL // PayPal（即時反映）
+  BANK_TRANSFER // 銀行振込（管理者確認後に開放）
+}
+
+/// 連絡先購入のステータス
+enum PurchaseStatus {
+  PENDING // 未完了（振込待ちなど）
+  COMPLETED // 完了（連絡先開放済み）
+  FAILED // 失敗
+  REFUNDED // 返金
+}
+
+/// お問い合わせの対応ステータス
+enum InquiryStatus {
+  NEW // 新規
+  REPLIED // 返信済み
+  CLOSED // 対応完了
+}
+
+/// 本人確認書類の種類
+enum IdentityDocumentType {
+  ID_CARD // マイナンバーカード・住民基本台帳カード等
+  DRIVERS_LICENSE // 運転免許証
+  PASSPORT // パスポート
+}
+
+/// 本人確認の審査ステータス
+enum VerificationStatus {
+  PENDING // 審査待ち
+  APPROVED // 承認
+  REJECTED // 却下
+}
+
+/// 通知の種類（将来の拡張に備え汎用的に定義）
+enum NotificationType {
+  SYSTEM // システムからのお知らせ
+  PROFILE_APPROVED // プロフィール承認
+  PROFILE_REJECTED // プロフィール却下
+  VERIFICATION_RESULT // 本人確認の結果
+  NEW_PURCHASE // 連絡先が購入された（先生向け）
+  NEW_REVIEW // 新しいレビュー
+}
+
+// ============================================================
+// ユーザー
+// ============================================================
+
+/// 共通ユーザー（生徒 / 先生 / 管理者を role で区別）
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  role          UserRole  @default(STUDENT)
+  emailVerified DateTime? @map("email_verified") // メール認証が完了した日時（未認証は null）
+  lastLoginAt   DateTime? @map("last_login_at") // 最終ログイン日時
+  loginAttempts Int       @default(0) @map("login_attempts")
+  lockedUntil   DateTime? @map("locked_until")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // --- リレーション ---
+  teacherProfile TeacherProfile? // 先生の場合のプロフィール
+  studentProfile StudentProfile? // 生徒の場合のプロフィール
+  purchases      Purchase[] // この生徒が行った連絡先購入
+  reviews        Review[] // この生徒が投稿したレビュー
+  favorites      Favorite[] // この生徒のお気に入り
+  recentlyViewed RecentlyViewed[] // この生徒が最近見た先生
+  notifications  Notification[] // この生徒/先生宛の通知
+
+  @@map("users")
+}
+
+// ============================================================
+// 先生プロフィール
+// ============================================================
+
+/// 先生のプロフィール（1ユーザーにつき1件）
+model TeacherProfile {
+  id                  String        @id @default(cuid())
+  userId              String        @unique @map("user_id")
+  slug                String        @unique // URL用の一意な識別子
+  displayName         String        @map("display_name") // 表示名
+  catchphrase         String?       @db.VarChar(100) // キャッチコピー
+  bio                 String?       @db.Text // 自己紹介
+  lessonContent       String?       @map("lesson_content") @db.Text // レッスン内容
+  profileImageUrl     String?       @map("profile_image_url") // プロフィール写真URL
+  youtubeUrl          String?       @map("youtube_url") // YouTube自己紹介動画URL（任意）
+  websiteUrl          String?       @map("website_url") // ホームページURL（任意）
+  snsUrl              String?       @map("sns_url") // SNSリンク（任意）
+  // 連絡先情報（連絡先を購入した生徒にのみ開示。公開ページには出さない）
+  phone               String?       @map("phone") // 電話番号（任意・購入者のみ開示）
+  lineId              String?       @map("line_id") // LINE ID（任意・保存のみ／画面には表示しない）
+  priceMin            Int?          @map("price_min") // 参考価格（下限・円）
+  priceMax            Int?          @map("price_max") // 参考価格（上限・円）
+  targetAges          TargetAge[]   @map("target_ages") // 対象年齢層（複数可）
+  skillLevels         SkillLevel[]  @map("skill_levels") // 対応レベル（複数可）
+  isOnline            Boolean       @default(false) @map("is_online") // オンライン対応
+  hasTrial            Boolean       @default(false) @map("has_trial") // 初回体験あり
+  // 新規受付ON/OFF（生徒の受け入れ可否）
+  isAcceptingStudents Boolean       @default(true) @map("is_accepting_students")
+  isPublic            Boolean       @default(false) @map("is_public") // 公開・非公開
+  isVerified          Boolean       @default(false) @map("is_verified") // 本人確認済み
+  status              ProfileStatus @default(DRAFT) // 審査ステータス
+  // プロフィール完成率（0〜100）。入力済み項目数から算出しUIの促進に利用
+  profileCompletion   Int           @default(0) @map("profile_completion")
+  viewCount           Int           @default(0) @map("view_count") // 閲覧数
+  // レビュー集計（承認済みレビューから再計算して保持。検索カードでの高速表示用）
+  reviewCount         Int           @default(0) @map("review_count") // 承認済みレビュー件数
+  ratingAverage       Float         @default(0) @map("rating_average") // 平均評価（0〜5）
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+
+  // --- リレーション ---
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categories     TeacherCategory[] // 担当カテゴリー（中間テーブル経由）
+  areas          TeacherArea[] // 対応地域
+  reviews        Review[] // 受け取ったレビュー
+  favoritedBy    Favorite[] // お気に入り登録された記録
+  recentlyViewed RecentlyViewed[] // 生徒に閲覧された記録
+  purchases      Purchase[] // 連絡先を購入された記録
+  verification   IdentityVerification? // 本人確認申請
+
+  // --- 検索用インデックス ---
+  // 一覧・検索の基本条件（公開中 かつ 受付中）で頻繁に絞り込むため複合indexを用意
+  @@index([isPublic, isAcceptingStudents])
+  @@index([status, isPublic])
+  @@index([isOnline]) // オンライン対応での絞り込み
+  @@index([priceMin]) // 参考価格（下限）での範囲検索・並び替え
+  @@map("teacher_profiles")
+}
+
+/// 先生の対応地域（1先生が複数地域を登録可能）
+model TeacherArea {
+  id         String   @id @default(cuid())
+  teacherId  String   @map("teacher_id")
+  prefecture String // 都道府県
+  city       String? // 市区町村（任意）
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@index([prefecture])
+  @@map("teacher_areas")
+}
+
+// ============================================================
+// 生徒プロフィール
+// ============================================================
+
+/// 生徒のプロフィール（1ユーザーにつき1件・非公開）
+model StudentProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique @map("user_id")
+  displayName       String   @map("display_name") // 表示名（ニックネーム）
+  bio               String?  @db.Text // 自己紹介（任意）
+  prefecture        String? // 居住都道府県（任意）
+  avatarUrl         String?  @map("avatar_url") // プロフィール画像URL（任意）
+  isOnlinePreferred Boolean  @default(false) @map("is_online_preferred") // オンライン希望
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interests StudentCategory[] // 興味のあるカテゴリー（中間テーブル経由）
+
+  @@map("student_profiles")
+}
+
+// ============================================================
+// カテゴリー
+// ============================================================
+
+/// レッスンカテゴリー（管理画面から追加・編集可能）
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  icon        String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  teachers TeacherCategory[] // このカテゴリーに属する先生（中間テーブル経由）
+  students StudentCategory[] // このカテゴリーに興味のある生徒（中間テーブル経由）
+
+  @@map("categories")
+}
+
+/// 先生 × カテゴリー の中間テーブル（多対多）
+model TeacherCategory {
+  teacherId  String   @map("teacher_id")
+  categoryId String   @map("category_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  teacher  TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  category Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([teacherId, categoryId])
+  @@index([categoryId])
+  @@map("teacher_categories")
+}
+
+/// 生徒 × カテゴリー の中間テーブル（興味のあるカテゴリー・多対多）
+model StudentCategory {
+  studentId  String   @map("student_id")
+  categoryId String   @map("category_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  student  StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  category Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, categoryId])
+  @@index([categoryId])
+  @@map("student_categories")
+}
+
+// ============================================================
+// レビュー・お気に入り・閲覧履歴
+// ============================================================
+
+/// 生徒が先生に投稿するレビュー（審査を経て公開）
+model Review {
+  id        String       @id @default(cuid())
+  teacherId String       @map("teacher_id")
+  studentId String       @map("student_id")
+  rating    Int // 評価（1〜5）
+  title     String       @db.VarChar(100) // レビュータイトル
+  comment   String       @db.Text // レビュー本文
+  status    ReviewStatus @default(PENDING) // 審査ステータス
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  student User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  // 同一生徒が同一先生に複数レビューを投稿できないようにする
+  @@unique([teacherId, studentId])
+  @@index([teacherId, status])
+  @@map("reviews")
+}
+
+/// 生徒のお気に入り先生
+model Favorite {
+  studentId String   @map("student_id")
+  teacherId String   @map("teacher_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  student User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, teacherId])
+  @@index([teacherId])
+  @@map("favorites")
+}
+
+/// 生徒が最近見た先生（マイページの「最近見た先生」用）
+model RecentlyViewed {
+  studentId String   @map("student_id")
+  teacherId String   @map("teacher_id")
+  viewedAt  DateTime @default(now()) @map("viewed_at")
+
+  student User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, teacherId])
+  @@index([studentId, viewedAt])
+  @@map("recently_viewed")
+}
+
+// ============================================================
+// 決済（連絡先購入）
+// ============================================================
+
+/// 連絡先購入（先生1名につき固定料金）
+model Purchase {
+  id                String         @id @default(cuid())
+  studentId         String         @map("student_id")
+  teacherId         String         @map("teacher_id")
+  amount            Int // 支払い金額（円）
+  paymentMethod     PaymentMethod  @map("payment_method")
+  status            PurchaseStatus @default(PENDING)
+  contactRevealedAt DateTime?      @map("contact_revealed_at") // 連絡先を開放した日時
+
+  // PayPal 用フィールド
+  paypalOrderId String? @map("paypal_order_id")
+
+  // 銀行振込 用フィールド
+  bankTransferName String?   @map("bank_transfer_name") // 振込名義
+  confirmedAt      DateTime? @map("confirmed_at") // 管理者が入金確認した日時
+  confirmedBy      String?   @map("confirmed_by") // 確認した管理者のユーザーID
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  student User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([teacherId])
+  @@index([status])
+  @@map("purchases")
+}
+
+// ============================================================
+// お問い合わせ
+// ============================================================
+
+/// サイトへのお問い合わせ（ログイン不要でも送信可能）
+model Inquiry {
+  id        String        @id @default(cuid())
+  name      String
+  email     String
+  subject   String
+  message   String        @db.Text
+  status    InquiryStatus @default(NEW)
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("inquiries")
+}
+
+// ============================================================
+// 本人確認
+// ============================================================
+
+/// 先生の本人確認申請（1先生につき1件）
+model IdentityVerification {
+  id           String               @id @default(cuid())
+  teacherId    String               @unique @map("teacher_id")
+  documentType IdentityDocumentType @map("document_type")
+  documentUrl  String               @map("document_url") // 提出書類（非公開・管理者のみ閲覧）
+  note         String?              @db.Text // 先生からの備考（任意）
+  status       VerificationStatus   @default(PENDING)
+  rejectReason String?              @map("reject_reason") @db.Text // 却下理由
+  reviewedAt   DateTime?            @map("reviewed_at")
+  reviewedBy   String?              @map("reviewed_by") // 審査した管理者のユーザーID
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("identity_verifications")
+}
+
+// ============================================================
+// 通知・お知らせ
+// ============================================================
+
+/// 特定ユーザー宛の通知
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
+  type      NotificationType @default(SYSTEM)
+  title     String
+  body      String           @db.Text
+  linkUrl   String?          @map("link_url") // 関連ページへのリンク（任意）
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+/// サイト全体向けのお知らせ（管理者が作成）
+model Announcement {
+  id          String    @id @default(cuid())
+  title       String
+  body        String    @db.Text
+  isPublished Boolean   @default(false) @map("is_published")
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([isPublished, publishedAt])
+  @@map("announcements")
+}
+
+// ============================================================
+// サイト設定
+// ============================================================
+
+/// キー・バリュー形式のサイト設定
+model SiteSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_settings")
+}

@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+/*
+ * チョコット先生 カラーテーマ
+ * 白を基調に、オレンジ・黄色・ピンクで温かみのある教育サービスらしい配色
+ */
+:root {
+  /* ベースカラー */
+  --background: #ffffff;
+  --foreground: #2d2d2d;
+  --muted: #6b7280;
+  --surface: #fff8f0;
+  --border: #f0e6dc;
+
+  /* ブランドカラー */
+  --primary: #ff8c42;
+  --primary-hover: #e67a35;
+  --primary-light: #fff3eb;
+
+  --secondary: #ffd166;
+  --secondary-hover: #f5c04d;
+  --secondary-light: #fffbeb;
+
+  --accent: #ff6b9d;
+  --accent-hover: #e85a8a;
+  --accent-light: #fff0f5;
+
+  /* 角丸 */
+  --radius-sm: 0.5rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-full: 9999px;
+}
+
+@theme inline {
+  /* 背景・文字 */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+
+  /* ブランド */
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-light: var(--primary-light);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-secondary-light: var(--secondary-light);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-light: var(--accent-light);
+
+  /* フォント */
+  --font-sans: var(--font-noto-sans-jp);
+
+  /* 角丸 */
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-full: var(--radius-full);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-noto-sans-jp), sans-serif;
+  line-height: 1.7;
+}
+
+/* アクセシビリティ: キーボードフォーカスの視認性 */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* スクリーンリーダー専用テキスト */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
