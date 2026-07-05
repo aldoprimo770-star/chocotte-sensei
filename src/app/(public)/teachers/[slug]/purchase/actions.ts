@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth/session";
 import { getActivePurchase } from "@/lib/purchase/purchase";
-import { createOrder, captureOrder } from "@/lib/payments/paypal";
 import { SITE } from "@/constants/site";
 
 /**
@@ -54,6 +53,8 @@ export async function purchaseWithPayPalAction(
   }
 
   try {
+    const { createOrder, captureOrder } = await import("@/lib/payments/paypal");
+
     // 1) 注文作成 → 2) 購入レコードを PENDING で作成 → 3) capture → 完了
     const order = await createOrder({
       amount: SITE.contactPrice,

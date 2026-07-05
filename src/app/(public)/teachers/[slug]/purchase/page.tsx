@@ -5,7 +5,6 @@ import { auth } from "@/auth";
 import { SITE } from "@/constants/site";
 import { getPublishedTeacherBySlug } from "@/lib/teacher/profile";
 import { getActivePurchase } from "@/lib/purchase/purchase";
-import { isPayPalTestMode } from "@/lib/payments/paypal";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { PurchasePanel } from "./purchase-panel";
@@ -148,7 +147,7 @@ async function PurchaseArea({
       <PurchasePanel
         teacherId={teacherId}
         price={SITE.contactPrice}
-        paypalTestMode={isPayPalTestMode()}
+        paypalTestMode={!(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET)}
       />
     </Card>
   );
