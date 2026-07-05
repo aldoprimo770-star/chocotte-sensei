@@ -117,14 +117,25 @@ npm run preview
 
 ### 4. Cloudflare ダッシュボード設定
 
-**Cloudflare Pages**（Git 連携）または **Workers** で GitHub リポジトリを接続します。
+**Workers Builds**（GitHub 連携）でリポジトリを接続します。Pages の「Output directory」ではなく、**Build command / Deploy command** を設定します。
 
-| 項目 | 値（例） |
-|------|---------|
-| ビルドコマンド | `npm run build:cloudflare` |
-| 出力ディレクトリ | OpenNext の指示に従う（`.open-next` 等） |
-| Node.js バージョン | `20` |
-| 環境変数 | `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, PayPal 関連 |
+| 項目 | 値 |
+|------|-----|
+| **Build command** | `npm run build:cloudflare` |
+| **Deploy command** | `npx opennextjs-cloudflare deploy` |
+| **Non-production branch deploy command** | `npx opennextjs-cloudflare upload` |
+| **Output directory** | **空欄**（設定しない） |
+| **Node.js バージョン** | `20`（環境変数 `NODE_VERSION=20` でも可） |
+
+> **重要:** Deploy コマンドは `wrangler deploy` ではなく **`opennextjs-cloudflare deploy`** 必須です。  
+> Build で `.open-next` が生成された後、Deploy が OpenNext 形式で Workers にアップロードします。
+
+代替（1コマンドで完結させる場合）:
+
+| 項目 | 値 |
+|------|-----|
+| Build command | `npm run build` |
+| Deploy command | `npm run deploy` |
 
 シークレット値（`DATABASE_URL`, `AUTH_SECRET`, `PAYPAL_CLIENT_SECRET`）は **Encrypt** を有効にして保存してください。
 
