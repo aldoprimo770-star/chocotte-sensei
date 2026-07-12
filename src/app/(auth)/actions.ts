@@ -2,7 +2,7 @@
 
 import { AuthError } from "next-auth";
 import type { UserRole } from "@prisma/client";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { signIn, signOut } from "@/auth";
 import { hashPassword } from "@/lib/auth/password";
 import { generateTeacherSlug } from "@/lib/slug";
@@ -50,7 +50,7 @@ export async function registerTeacherAction(
   const { displayName, email, password } = parsed.data;
 
   // 2. メールアドレス重複チェック
-  const existing = await db.user.findUnique({ where: { email } });
+  const existing = await getDb().user.findUnique({ where: { email } });
   if (existing) {
     return {
       success: false,
@@ -61,7 +61,7 @@ export async function registerTeacherAction(
   // 3. ユーザー + 先生プロフィールを同時作成（トランザクション）
   const passwordHash = await hashPassword(password);
   try {
-    await db.user.create({
+    await getDb().user.create({
       data: {
         email,
         passwordHash,
@@ -111,7 +111,7 @@ export async function registerStudentAction(
   const { displayName, email, password } = parsed.data;
 
   // メールアドレス重複チェック
-  const existing = await db.user.findUnique({ where: { email } });
+  const existing = await getDb().user.findUnique({ where: { email } });
   if (existing) {
     return {
       success: false,
@@ -122,7 +122,7 @@ export async function registerStudentAction(
   // ユーザー + 生徒プロフィールを同時作成
   const passwordHash = await hashPassword(password);
   try {
-    await db.user.create({
+    await getDb().user.create({
       data: {
         email,
         passwordHash,
@@ -182,7 +182,7 @@ export async function loginAction(input: LoginInput): Promise<LoginResult> {
   }
 
   // 遷移先判定のためロールを取得
-  const user = await db.user.findUnique({
+  const user = await getDb().user.findUnique({
     where: { email: parsed.data.email },
     select: { role: true },
   });

@@ -13,6 +13,9 @@ import { Pagination } from "@/components/common/pagination";
 import { SearchForm } from "./search-form";
 import { SortSelect } from "./sort-select";
 
+/** searchParams + DB 参照のため動的描画 */
+export const dynamic = "force-dynamic";
+
 /** 検索ページの SEO メタデータ */
 export const metadata: Metadata = {
   title: "先生を探す",

@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 
 /**
  * レビューのデータ取得層 + 集計ヘルパー（サーバー専用）
@@ -11,7 +11,7 @@ import { db } from "@/lib/db";
 
 /** 公開プロフィール用：承認済みレビュー一覧（新しい順・投稿者名付き） */
 export const getApprovedReviews = cache(async (teacherId: string) => {
-  return db.review.findMany({
+  return getDb().review.findMany({
     where: { teacherId, status: "APPROVED" },
     orderBy: { createdAt: "desc" },
     select: {
@@ -30,7 +30,7 @@ export const getApprovedReviews = cache(async (teacherId: string) => {
 /** 生徒本人が対象先生に投稿済みのレビュー（ステータス問わず。無ければ null） */
 export const getStudentReviewForTeacher = cache(
   async (studentId: string, teacherId: string) => {
-    return db.review.findUnique({
+    return getDb().review.findUnique({
       where: { teacherId_studentId: { teacherId, studentId } },
       select: {
         id: true,
@@ -46,7 +46,7 @@ export const getStudentReviewForTeacher = cache(
 
 /** 生徒のレビュー履歴（マイページ用・新しい順・先生情報付き） */
 export async function getStudentReviews(studentId: string) {
-  return db.review.findMany({
+  return getDb().review.findMany({
     where: { studentId },
     orderBy: { createdAt: "desc" },
     select: {
@@ -66,13 +66,13 @@ export async function getStudentReviews(studentId: string) {
  * レビューの作成・更新・承認・非公開・削除の各操作後に必ず呼び出す。
  */
 export async function recalcTeacherRating(teacherId: string): Promise<void> {
-  const agg = await db.review.aggregate({
+  const agg = await getDb().review.aggregate({
     where: { teacherId, status: "APPROVED" },
     _avg: { rating: true },
     _count: true,
   });
 
-  await db.teacherProfile.update({
+  await getDb().teacherProfile.update({
     where: { id: teacherId },
     data: {
       reviewCount: agg._count,

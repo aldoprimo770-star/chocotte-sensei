@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { requireRole } from "@/lib/auth/session";
 import {
   teacherProfileDraftSchema,
@@ -34,7 +34,7 @@ export async function saveTeacherProfileAction(
   const session = await requireRole("TEACHER");
 
   // 対象プロフィールを取得
-  const profile = await db.teacherProfile.findUnique({
+  const profile = await getDb().teacherProfile.findUnique({
     where: { userId: session.user.id },
     select: { id: true },
   });
@@ -85,8 +85,8 @@ export async function saveTeacherProfileAction(
   });
 
   // プロフィール本体 + カテゴリー + 地域をまとめて更新（トランザクション）
-  await db.$transaction([
-    db.teacherProfile.update({
+  await getDb().$transaction([
+    getDb().teacherProfile.update({
       where: { id: profile.id },
       data: {
         displayName: data.displayName,
@@ -112,16 +112,16 @@ export async function saveTeacherProfileAction(
       },
     }),
     // カテゴリーは一旦削除して作り直す（差分管理より単純で安全）
-    db.teacherCategory.deleteMany({ where: { teacherId: profile.id } }),
-    db.teacherCategory.createMany({
+    getDb().teacherCategory.deleteMany({ where: { teacherId: profile.id } }),
+    getDb().teacherCategory.createMany({
       data: data.categoryIds.map((categoryId) => ({
         teacherId: profile.id,
         categoryId,
       })),
     }),
     // 地域も同様に作り直す
-    db.teacherArea.deleteMany({ where: { teacherId: profile.id } }),
-    db.teacherArea.createMany({
+    getDb().teacherArea.deleteMany({ where: { teacherId: profile.id } }),
+    getDb().teacherArea.createMany({
       data: data.prefectures.map((prefecture) => ({
         teacherId: profile.id,
         prefecture,

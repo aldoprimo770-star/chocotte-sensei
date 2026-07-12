@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { TEACHER_CARD_SELECT, type TeacherCardData } from "@/lib/teacher/search";
 
 /**
@@ -18,7 +18,7 @@ export async function recordRecentlyViewed(
   studentId: string,
   teacherId: string,
 ): Promise<void> {
-  await db.$transaction(async (tx) => {
+  await getDb().$transaction(async (tx) => {
     await tx.recentlyViewed.upsert({
       where: { studentId_teacherId: { studentId, teacherId } },
       create: { studentId, teacherId, viewedAt: new Date() },
@@ -44,7 +44,7 @@ export async function recordRecentlyViewed(
 export async function getStudentRecentlyViewedTeachers(
   studentId: string,
 ): Promise<TeacherCardData[]> {
-  const rows = await db.recentlyViewed.findMany({
+  const rows = await getDb().recentlyViewed.findMany({
     where: {
       studentId,
       teacher: { isPublic: true, status: "APPROVED" },

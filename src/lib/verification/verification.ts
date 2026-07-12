@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 
 /**
  * 本人確認のデータ取得層（サーバー専用）
@@ -10,7 +10,7 @@ import { db } from "@/lib/db";
 
 /** 先生（TeacherProfile.id）の本人確認申請を取得。無ければ null */
 export const getVerificationByTeacherId = cache(async (teacherId: string) => {
-  return db.identityVerification.findUnique({
+  return getDb().identityVerification.findUnique({
     where: { teacherId },
     select: {
       id: true,

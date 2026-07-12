@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { requireRole } from "@/lib/auth/session";
 import { getActivePurchase } from "@/lib/purchase/purchase";
 import { SITE } from "@/constants/site";
@@ -23,7 +23,7 @@ export type PurchaseActionResult =
 async function assertPurchasableTeacher(
   teacherId: string,
 ): Promise<{ ok: boolean }> {
-  const teacher = await db.teacherProfile.findFirst({
+  const teacher = await getDb().teacherProfile.findFirst({
     where: { id: teacherId, isPublic: true, status: "APPROVED" },
     select: { id: true },
   });
@@ -61,7 +61,7 @@ export async function purchaseWithPayPalAction(
       referenceId: teacherId,
     });
 
-    const purchase = await db.purchase.create({
+    const purchase = await getDb().purchase.create({
       data: {
         studentId,
         teacherId,
@@ -76,7 +76,7 @@ export async function purchaseWithPayPalAction(
     const capture = await captureOrder(order.orderId);
 
     if (!capture.ok) {
-      await db.purchase.update({
+      await getDb().purchase.update({
         where: { id: purchase.id },
         data: { status: "FAILED" },
       });
@@ -86,7 +86,7 @@ export async function purchaseWithPayPalAction(
       };
     }
 
-    await db.purchase.update({
+    await getDb().purchase.update({
       where: { id: purchase.id },
       data: { status: "COMPLETED", contactRevealedAt: new Date() },
     });
@@ -129,7 +129,7 @@ export async function purchaseWithBankTransferAction(
   const name = bankTransferName.trim().slice(0, 50);
 
   try {
-    const purchase = await db.purchase.create({
+    const purchase = await getDb().purchase.create({
       data: {
         studentId,
         teacherId,

@@ -39,7 +39,7 @@ export function TeacherGrid({
           {...favoriteProps}
           isFavorited={
             favoriteContext?.mode === "student"
-              ? favoriteContext.favoriteIds.has(teacher.id)
+              ? favoriteContext.favoriteIds.includes(teacher.id)
               : false
           }
         />

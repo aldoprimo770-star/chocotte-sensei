@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 
 /** ダッシュボードに表示する集計値 */
 export interface AdminStats {
@@ -58,17 +58,17 @@ export async function getAdminStats(): Promise<AdminStats> {
     registeredThisMonth,
     unhandledInquiries,
   ] = await Promise.all([
-    db.user.count({ where: { role: "TEACHER" } }),
-    db.user.count({ where: { role: "STUDENT" } }),
-    db.teacherProfile.count({ where: { isPublic: true, status: "APPROVED" } }),
-    db.teacherProfile.count({ where: { status: "PENDING" } }),
-    db.inquiry.count(),
-    db.purchase.count({ where: { status: "COMPLETED" } }),
-    db.identityVerification.count({ where: { status: "PENDING" } }),
-    db.review.count({ where: { status: "PENDING" } }),
-    db.user.count({ where: { createdAt: { gte: startOfToday } } }),
-    db.user.count({ where: { createdAt: { gte: startOfMonth } } }),
-    db.inquiry.count({ where: { status: "NEW" } }),
+    getDb().user.count({ where: { role: "TEACHER" } }),
+    getDb().user.count({ where: { role: "STUDENT" } }),
+    getDb().teacherProfile.count({ where: { isPublic: true, status: "APPROVED" } }),
+    getDb().teacherProfile.count({ where: { status: "PENDING" } }),
+    getDb().inquiry.count(),
+    getDb().purchase.count({ where: { status: "COMPLETED" } }),
+    getDb().identityVerification.count({ where: { status: "PENDING" } }),
+    getDb().review.count({ where: { status: "PENDING" } }),
+    getDb().user.count({ where: { createdAt: { gte: startOfToday } } }),
+    getDb().user.count({ where: { createdAt: { gte: startOfMonth } } }),
+    getDb().inquiry.count({ where: { status: "NEW" } }),
   ]);
 
   return {

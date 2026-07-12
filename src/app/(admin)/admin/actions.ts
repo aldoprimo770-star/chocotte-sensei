@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import type { InquiryStatus } from "@prisma/client";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { requireRole } from "@/lib/auth/session";
 import { recalcTeacherRating } from "@/lib/review/review";
 import type { FormActionResult } from "@/types/action";
@@ -22,7 +22,7 @@ export async function setTeacherVisibilityAction(
   await requireRole("ADMIN");
 
   try {
-    await db.teacherProfile.update({
+    await getDb().teacherProfile.update({
       where: { id: teacherId },
       data: { isPublic },
     });
@@ -41,7 +41,7 @@ export async function approveTeacherAction(
   await requireRole("ADMIN");
 
   try {
-    await db.teacherProfile.update({
+    await getDb().teacherProfile.update({
       where: { id: teacherId },
       data: { status: "APPROVED" },
     });
@@ -60,7 +60,7 @@ export async function rejectTeacherAction(
   await requireRole("ADMIN");
 
   try {
-    await db.teacherProfile.update({
+    await getDb().teacherProfile.update({
       where: { id: teacherId },
       data: { status: "REJECTED", isPublic: false },
     });
@@ -82,7 +82,7 @@ export async function confirmPurchasePaymentAction(
   const session = await requireRole("ADMIN");
 
   try {
-    await db.purchase.update({
+    await getDb().purchase.update({
       where: { id: purchaseId },
       data: {
         status: "COMPLETED",
@@ -109,7 +109,7 @@ export async function revealPurchaseContactAction(
   await requireRole("ADMIN");
 
   try {
-    const purchase = await db.purchase.findUnique({
+    const purchase = await getDb().purchase.findUnique({
       where: { id: purchaseId },
       select: { status: true },
     });
@@ -119,7 +119,7 @@ export async function revealPurchaseContactAction(
         error: "完了済みの購入のみ連絡先を公開できます。",
       };
     }
-    await db.purchase.update({
+    await getDb().purchase.update({
       where: { id: purchaseId },
       data: { contactRevealedAt: new Date() },
     });
@@ -140,7 +140,7 @@ export async function approveVerificationAction(
   const session = await requireRole("ADMIN");
 
   try {
-    const verification = await db.identityVerification.findUnique({
+    const verification = await getDb().identityVerification.findUnique({
       where: { id: verificationId },
       select: { teacherId: true },
     });
@@ -149,8 +149,8 @@ export async function approveVerificationAction(
     }
 
     // 申請の承認と先生プロフィールの本人確認フラグを同時に更新
-    await db.$transaction([
-      db.identityVerification.update({
+    await getDb().$transaction([
+      getDb().identityVerification.update({
         where: { id: verificationId },
         data: {
           status: "APPROVED",
@@ -159,7 +159,7 @@ export async function approveVerificationAction(
           reviewedBy: session.user.id,
         },
       }),
-      db.teacherProfile.update({
+      getDb().teacherProfile.update({
         where: { id: verification.teacherId },
         data: { isVerified: true },
       }),
@@ -189,7 +189,7 @@ export async function rejectVerificationAction(
   }
 
   try {
-    const verification = await db.identityVerification.findUnique({
+    const verification = await getDb().identityVerification.findUnique({
       where: { id: verificationId },
       select: { teacherId: true },
     });
@@ -197,8 +197,8 @@ export async function rejectVerificationAction(
       return { success: false, error: "申請が見つかりません。" };
     }
 
-    await db.$transaction([
-      db.identityVerification.update({
+    await getDb().$transaction([
+      getDb().identityVerification.update({
         where: { id: verificationId },
         data: {
           status: "REJECTED",
@@ -207,7 +207,7 @@ export async function rejectVerificationAction(
           reviewedBy: session.user.id,
         },
       }),
-      db.teacherProfile.update({
+      getDb().teacherProfile.update({
         where: { id: verification.teacherId },
         data: { isVerified: false },
       }),
@@ -232,7 +232,7 @@ export async function setReviewStatusAction(
   await requireRole("ADMIN");
 
   try {
-    const review = await db.review.update({
+    const review = await getDb().review.update({
       where: { id: reviewId },
       data: { status },
       select: { teacherId: true, teacher: { select: { slug: true } } },
@@ -256,7 +256,7 @@ export async function deleteReviewAdminAction(
   await requireRole("ADMIN");
 
   try {
-    const review = await db.review.findUnique({
+    const review = await getDb().review.findUnique({
       where: { id: reviewId },
       select: { teacherId: true, teacher: { select: { slug: true } } },
     });
@@ -264,7 +264,7 @@ export async function deleteReviewAdminAction(
       return { success: false, error: "レビューが見つかりません。" };
     }
 
-    await db.review.delete({ where: { id: reviewId } });
+    await getDb().review.delete({ where: { id: reviewId } });
     await recalcTeacherRating(review.teacherId);
 
     revalidatePath("/admin/reviews");
@@ -284,7 +284,7 @@ export async function updateInquiryStatusAction(
   await requireRole("ADMIN");
 
   try {
-    await db.inquiry.update({
+    await getDb().inquiry.update({
       where: { id: inquiryId },
       data: { status },
     });

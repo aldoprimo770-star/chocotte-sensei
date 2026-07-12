@@ -17,7 +17,7 @@ export default async function StudentRecentPage() {
   const favoriteContext = {
     mode: "student" as const,
     callbackUrl: "/mypage/recent",
-    favoriteIds,
+    favoriteIds: [...favoriteIds],
   };
 
   return (

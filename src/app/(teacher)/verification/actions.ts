@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { requireRole } from "@/lib/auth/session";
 import { verificationSchema, type VerificationInput } from "@/schemas/verification.schema";
 import type { FormActionResult } from "@/types/action";
@@ -18,7 +18,7 @@ export async function submitVerificationAction(
   const session = await requireRole("TEACHER");
 
   // 自分の先生プロフィールを特定
-  const profile = await db.teacherProfile.findUnique({
+  const profile = await getDb().teacherProfile.findUnique({
     where: { userId: session.user.id },
     select: { id: true },
   });
@@ -46,7 +46,7 @@ export async function submitVerificationAction(
 
   try {
     // 承認済みの場合は再申請を受け付けない（不要な差し戻しを防ぐ）
-    const existing = await db.identityVerification.findUnique({
+    const existing = await getDb().identityVerification.findUnique({
       where: { teacherId: profile.id },
       select: { status: true },
     });
@@ -54,7 +54,7 @@ export async function submitVerificationAction(
       return { success: false, error: "すでに本人確認は承認済みです。" };
     }
 
-    await db.identityVerification.upsert({
+    await getDb().identityVerification.upsert({
       where: { teacherId: profile.id },
       create: {
         teacherId: profile.id,

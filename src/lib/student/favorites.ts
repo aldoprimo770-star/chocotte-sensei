@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { auth } from "@/auth";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { TEACHER_CARD_SELECT, type TeacherCardData } from "@/lib/teacher/search";
 
 /**
@@ -12,7 +12,7 @@ import { TEACHER_CARD_SELECT, type TeacherCardData } from "@/lib/teacher/search"
 
 /** 生徒がお気に入り登録した teacherId の集合 */
 export const getStudentFavoriteTeacherIds = cache(async (studentId: string) => {
-  const rows = await db.favorite.findMany({
+  const rows = await getDb().favorite.findMany({
     where: { studentId },
     select: { teacherId: true },
   });
@@ -24,7 +24,7 @@ export async function isTeacherFavorited(
   studentId: string,
   teacherId: string,
 ): Promise<boolean> {
-  const row = await db.favorite.findUnique({
+  const row = await getDb().favorite.findUnique({
     where: { studentId_teacherId: { studentId, teacherId } },
     select: { teacherId: true },
   });
@@ -35,7 +35,7 @@ export async function isTeacherFavorited(
 export async function getStudentFavoriteTeachers(
   studentId: string,
 ): Promise<TeacherCardData[]> {
-  const rows = await db.favorite.findMany({
+  const rows = await getDb().favorite.findMany({
     where: {
       studentId,
       teacher: { isPublic: true, status: "APPROVED" },
@@ -46,11 +46,11 @@ export async function getStudentFavoriteTeachers(
   return rows.map((r) => r.teacher);
 }
 
-/** お気に入りボタン表示用のコンテキスト（ページごとに1回取得） */
+/** 生徒がお気に入り登録した teacherId 一覧（RSC シリアライズ可能な配列） */
 export type FavoriteButtonContext =
   | { mode: "hidden" }
   | { mode: "guest"; callbackUrl: string }
-  | { mode: "student"; callbackUrl: string; favoriteIds: Set<string> };
+  | { mode: "student"; callbackUrl: string; favoriteIds: string[] };
 
 /**
  * 閲覧者に応じたお気に入りボタンの表示モードを返す。
@@ -64,8 +64,12 @@ export async function getFavoriteButtonContext(
   const session = await auth();
 
   if (session?.user?.role === "STUDENT") {
-    const favoriteIds = await getStudentFavoriteTeacherIds(session.user.id);
-    return { mode: "student", callbackUrl, favoriteIds };
+    const favoriteIdSet = await getStudentFavoriteTeacherIds(session.user.id);
+    return {
+      mode: "student",
+      callbackUrl,
+      favoriteIds: [...favoriteIdSet],
+    };
   }
 
   if (!session?.user) {

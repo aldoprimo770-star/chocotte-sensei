@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 
 /**
  * 連絡先購入のデータ取得層（サーバー専用）
@@ -11,7 +11,7 @@ import { db } from "@/lib/db";
 /** 「有効な」購入（入金確認中 or 完了）を1件取得。無ければ null */
 export const getActivePurchase = cache(
   async (studentId: string, teacherId: string) => {
-    return db.purchase.findFirst({
+    return getDb().purchase.findFirst({
       where: {
         studentId,
         teacherId,
@@ -25,7 +25,7 @@ export const getActivePurchase = cache(
 
 /** 生徒の購入履歴（新しい順・先生情報付き） */
 export async function getStudentPurchases(studentId: string) {
-  return db.purchase.findMany({
+  return getDb().purchase.findMany({
     where: { studentId },
     orderBy: { createdAt: "desc" },
     select: {
@@ -50,7 +50,7 @@ export async function getPurchaseForStudent(
   purchaseId: string,
   studentId: string,
 ) {
-  const purchase = await db.purchase.findFirst({
+  const purchase = await getDb().purchase.findFirst({
     where: { id: purchaseId, studentId },
     select: {
       id: true,

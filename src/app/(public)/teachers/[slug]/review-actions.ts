@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { requireRole } from "@/lib/auth/session";
 import { recalcTeacherRating } from "@/lib/review/review";
 import { reviewSchema, type ReviewInput } from "@/schemas/review.schema";
@@ -24,7 +24,7 @@ export async function submitReviewAction(
   const studentId = session.user.id;
 
   // 公開中の先生のみレビュー可能
-  const teacher = await db.teacherProfile.findFirst({
+  const teacher = await getDb().teacherProfile.findFirst({
     where: { slug, isPublic: true, status: "APPROVED" },
     select: { id: true },
   });
@@ -33,7 +33,7 @@ export async function submitReviewAction(
   }
 
   // 購入完了していない生徒はレビュー不可
-  const purchased = await db.purchase.findFirst({
+  const purchased = await getDb().purchase.findFirst({
     where: { studentId, teacherId: teacher.id, status: "COMPLETED" },
     select: { id: true },
   });
@@ -63,7 +63,7 @@ export async function submitReviewAction(
   const { rating, title, comment } = parsed.data;
 
   try {
-    await db.review.upsert({
+    await getDb().review.upsert({
       where: { teacherId_studentId: { teacherId: teacher.id, studentId } },
       create: {
         teacherId: teacher.id,
@@ -100,7 +100,7 @@ export async function deleteReviewAction(
 ): Promise<FormActionResult> {
   const session = await requireRole("STUDENT");
 
-  const review = await db.review.findUnique({
+  const review = await getDb().review.findUnique({
     where: { id: reviewId },
     select: { id: true, studentId: true, teacherId: true, teacher: { select: { slug: true } } },
   });
@@ -109,7 +109,7 @@ export async function deleteReviewAction(
   }
 
   try {
-    await db.review.delete({ where: { id: reviewId } });
+    await getDb().review.delete({ where: { id: reviewId } });
     await recalcTeacherRating(review.teacherId);
 
     revalidatePath(`/teachers/${review.teacher.slug}`);

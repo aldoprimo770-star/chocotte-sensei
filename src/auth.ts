@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import type { UserRole } from "@prisma/client";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth/password";
 import { loginSchema } from "@/schemas/auth.schema";
 
@@ -45,7 +45,7 @@ export const {
 
         const { email, password } = parsed.data;
 
-        const user = await db.user.findUnique({
+        const user = await getDb().user.findUnique({
           where: { email },
         });
         if (!user) {
@@ -59,7 +59,7 @@ export const {
         }
 
         // 最終ログイン日時を更新
-        await db.user.update({
+        await getDb().user.update({
           where: { id: user.id },
           data: { lastLoginAt: new Date() },
         });

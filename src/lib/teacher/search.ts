@@ -1,5 +1,5 @@
 import type { Prisma, SkillLevel, TargetAge } from "@prisma/client";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { isSkillLevel, isTargetAge, type TeacherSort } from "@/constants/teacher";
 import { PREFECTURES } from "@/constants/prefectures";
 
@@ -201,7 +201,7 @@ function buildOrderBy(
 export async function getLatestPublishedTeachers(
   limit: number,
 ): Promise<TeacherCardData[]> {
-  return db.teacherProfile.findMany({
+  return getDb().teacherProfile.findMany({
     where: { isPublic: true, status: "APPROVED" },
     orderBy: { createdAt: "desc" },
     take: limit,
@@ -215,7 +215,7 @@ export async function getLatestPublishedTeachers(
 export async function getPublishedTeacherSlugs(): Promise<
   { slug: string; updatedAt: Date }[]
 > {
-  return db.teacherProfile.findMany({
+  return getDb().teacherProfile.findMany({
     where: { isPublic: true, status: "APPROVED" },
     orderBy: { updatedAt: "desc" },
     select: { slug: true, updatedAt: true },
@@ -232,12 +232,12 @@ export async function searchTeachers(
   const where = buildWhere(query);
   const pageSize = TEACHERS_PAGE_SIZE;
 
-  const total = await db.teacherProfile.count({ where });
+  const total = await getDb().teacherProfile.count({ where });
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   // ページ番号を有効範囲に丸める
   const page = Math.min(query.page, totalPages);
 
-  const items = await db.teacherProfile.findMany({
+  const items = await getDb().teacherProfile.findMany({
     where,
     orderBy: buildOrderBy(query.sort),
     skip: (page - 1) * pageSize,

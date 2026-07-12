@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 
 /** 管理画面の一覧はまず新しい順に一定件数を表示する（初期版はページング無し） */
 const ADMIN_LIST_LIMIT = 100;
@@ -10,7 +10,7 @@ export type AdminTeacherRow = Awaited<
 
 /** 先生一覧を取得（カテゴリー・対応地域を含む） */
 export async function getAdminTeachers() {
-  return db.teacherProfile.findMany({
+  return getDb().teacherProfile.findMany({
     orderBy: { createdAt: "desc" },
     take: ADMIN_LIST_LIMIT,
     select: {
@@ -34,7 +34,7 @@ export type AdminStudentRow = Awaited<
 
 /** 生徒一覧を取得（アカウントの登録日・最終ログインを含む） */
 export async function getAdminStudents() {
-  return db.studentProfile.findMany({
+  return getDb().studentProfile.findMany({
     orderBy: { createdAt: "desc" },
     take: ADMIN_LIST_LIMIT,
     select: {
@@ -58,7 +58,7 @@ export type AdminVerificationRow = Awaited<
  * documentUrl は管理者のみが扱う機密情報。この画面（ADMIN限定）でのみ使用する。
  */
 export async function getAdminVerifications() {
-  return db.identityVerification.findMany({
+  return getDb().identityVerification.findMany({
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     take: ADMIN_LIST_LIMIT,
     select: {
@@ -86,7 +86,7 @@ export type AdminPurchaseRow = Awaited<
 
 /** 連絡先購入の一覧を取得（新しい順・購入者/先生情報付き） */
 export async function getAdminPurchases() {
-  return db.purchase.findMany({
+  return getDb().purchase.findMany({
     orderBy: { createdAt: "desc" },
     take: ADMIN_LIST_LIMIT,
     select: {
@@ -115,7 +115,7 @@ export type AdminReviewRow = Awaited<
 
 /** レビュー一覧を取得（承認待ちを先頭に、新しい順・投稿者/先生情報付き） */
 export async function getAdminReviews() {
-  return db.review.findMany({
+  return getDb().review.findMany({
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     take: ADMIN_LIST_LIMIT,
     select: {
@@ -138,7 +138,7 @@ export async function getAdminReviews() {
 
 /** お問い合わせ一覧を取得（新しい順） */
 export async function getAdminInquiries() {
-  return db.inquiry.findMany({
+  return getDb().inquiry.findMany({
     orderBy: { createdAt: "desc" },
     take: ADMIN_LIST_LIMIT,
     select: {

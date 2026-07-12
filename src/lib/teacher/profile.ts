@@ -1,6 +1,6 @@
 import { cache } from "react";
 import type { Prisma } from "@prisma/client";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 
 /**
  * 先生プロフィールのデータ取得層（サーバー専用）
@@ -20,7 +20,7 @@ export type TeacherProfileWithRelations = Prisma.TeacherProfileGetPayload<{
 /** ユーザーIDから先生プロフィールを取得（存在しなければ null） */
 export const getTeacherProfileByUserId = cache(
   async (userId: string): Promise<TeacherProfileWithRelations | null> => {
-    return db.teacherProfile.findUnique({
+    return getDb().teacherProfile.findUnique({
       where: { userId },
       include: {
         categories: { include: { category: true } },
@@ -36,7 +36,7 @@ export const getTeacherProfileByUserId = cache(
  */
 export const getPublishedTeacherBySlug = cache(
   async (slug: string): Promise<TeacherProfileWithRelations | null> => {
-    return db.teacherProfile.findFirst({
+    return getDb().teacherProfile.findFirst({
       where: {
         slug,
         isPublic: true,

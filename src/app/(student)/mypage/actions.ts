@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { requireRole } from "@/lib/auth/session";
 import { studentProfileSchema } from "@/schemas/student.schema";
 import type { StudentProfileFormInput } from "@/schemas/student.schema";
@@ -18,7 +18,7 @@ export async function saveStudentProfileAction(
 ): Promise<FormActionResult> {
   const session = await requireRole("STUDENT");
 
-  const profile = await db.studentProfile.findUnique({
+  const profile = await getDb().studentProfile.findUnique({
     where: { userId: session.user.id },
     select: { id: true },
   });
@@ -46,8 +46,8 @@ export async function saveStudentProfileAction(
   const data = parsed.data;
 
   // プロフィール本体 + 興味カテゴリーを更新（トランザクション）
-  await db.$transaction([
-    db.studentProfile.update({
+  await getDb().$transaction([
+    getDb().studentProfile.update({
       where: { id: profile.id },
       data: {
         displayName: data.displayName,
@@ -58,8 +58,8 @@ export async function saveStudentProfileAction(
       },
     }),
     // 興味カテゴリーは一旦削除して作り直す（差分管理より単純で安全）
-    db.studentCategory.deleteMany({ where: { studentId: profile.id } }),
-    db.studentCategory.createMany({
+    getDb().studentCategory.deleteMany({ where: { studentId: profile.id } }),
+    getDb().studentCategory.createMany({
       data: data.interestCategoryIds.map((categoryId) => ({
         studentId: profile.id,
         categoryId,

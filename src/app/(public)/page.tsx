@@ -16,6 +16,9 @@ import { TeacherGrid } from "@/components/teacher/teacher-grid";
 import { FaqAccordion } from "@/components/common/faq-accordion";
 import { HeroSearch } from "@/components/home/hero-search";
 
+/** DB 参照のためビルド時静的化せずリクエストごとに描画 */
+export const dynamic = "force-dynamic";
+
 /** トップページの SEO メタデータ */
 export const metadata: Metadata = {
   title: `${SITE.name} | ${SITE.tagline}`,

@@ -1,6 +1,6 @@
 "use server";
 
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { contactSchema, type ContactInput } from "@/schemas/contact.schema";
 import type { FormActionResult } from "@/types/action";
 
@@ -32,7 +32,7 @@ export async function submitContactAction(
   }
 
   try {
-    await db.inquiry.create({
+    await getDb().inquiry.create({
       data: {
         name: parsed.data.name,
         email: parsed.data.email,

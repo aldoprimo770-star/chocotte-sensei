@@ -13,7 +13,7 @@ export default async function StudentFavoritesPage() {
   const favoriteContext = {
     mode: "student" as const,
     callbackUrl: "/mypage/favorites",
-    favoriteIds: new Set(teachers.map((t) => t.id)),
+    favoriteIds: teachers.map((t) => t.id),
   };
 
   return (

@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 
 /**
  * カテゴリー関連の共通データ取得（先生・生徒・公開ページで再利用）
@@ -16,7 +16,7 @@ const categorySelect = {
 
 /** 有効なカテゴリー一覧を表示順で取得 */
 export const getActiveCategories = cache(async () => {
-  return db.category.findMany({
+  return getDb().category.findMany({
     where: { isActive: true },
     orderBy: { sortOrder: "asc" },
     select: categorySelect,
@@ -25,7 +25,7 @@ export const getActiveCategories = cache(async () => {
 
 /** slug から有効なカテゴリーを取得（カテゴリーページ用・なければ null） */
 export const getCategoryBySlug = cache(async (slug: string) => {
-  return db.category.findFirst({
+  return getDb().category.findFirst({
     where: { slug, isActive: true },
     select: categorySelect,
   });
@@ -33,7 +33,7 @@ export const getCategoryBySlug = cache(async (slug: string) => {
 
 /** sitemap 用に、有効なカテゴリーの slug 一覧のみ取得 */
 export const getActiveCategorySlugs = cache(async () => {
-  return db.category.findMany({
+  return getDb().category.findMany({
     where: { isActive: true },
     orderBy: { sortOrder: "asc" },
     select: { slug: true, updatedAt: true },

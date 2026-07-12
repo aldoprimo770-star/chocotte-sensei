@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { requireRole } from "@/lib/auth/session";
 import type { FormActionResult } from "@/types/action";
 
@@ -23,7 +23,7 @@ export async function toggleFavoriteAction(
   const session = await requireRole("STUDENT");
   const studentId = session.user.id;
 
-  const teacher = await db.teacherProfile.findFirst({
+  const teacher = await getDb().teacherProfile.findFirst({
     where: { id: teacherId, isPublic: true, status: "APPROVED" },
     select: { id: true, slug: true },
   });
@@ -32,20 +32,20 @@ export async function toggleFavoriteAction(
   }
 
   try {
-    const existing = await db.favorite.findUnique({
+    const existing = await getDb().favorite.findUnique({
       where: { studentId_teacherId: { studentId, teacherId } },
       select: { teacherId: true },
     });
 
     if (existing) {
-      await db.favorite.delete({
+      await getDb().favorite.delete({
         where: { studentId_teacherId: { studentId, teacherId } },
       });
       revalidateFavoritePaths(teacher.slug);
       return { success: true, favorited: false };
     }
 
-    await db.favorite.create({ data: { studentId, teacherId } });
+    await getDb().favorite.create({ data: { studentId, teacherId } });
     revalidateFavoritePaths(teacher.slug);
     return { success: true, favorited: true };
   } catch {
