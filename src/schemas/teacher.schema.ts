@@ -63,7 +63,12 @@ export const teacherProfileBaseSchema = z.object({
     "レッスン内容は2000文字以内で入力してください",
   ),
 
-  profileImageUrl: optionalUrl("正しい画像URLを入力してください"),
+  // R2 アップロード後に自動設定（手入力 URL は廃止）
+  profileImageUrl: z
+    .string()
+    .trim()
+    .transform((v) => (v === "" ? undefined : v))
+    .optional(),
   youtubeUrl: z
     .string()
     .trim()

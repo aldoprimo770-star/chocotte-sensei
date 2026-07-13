@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   teacherProfileDraftSchema,
@@ -27,6 +27,7 @@ import { FormField, Input, InputErrorMessage } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CompletionBar } from "@/components/teacher/completion-bar";
+import { ProfileImageUpload } from "@/components/teacher/profile-image-upload";
 
 interface ProfileFormProps {
   /** フォーム初期値 */
@@ -54,6 +55,7 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
   // resolver は検証のみに使い、送信時は生の入力値(getValues)をサーバーへ渡す。
   const {
     register,
+    control,
     handleSubmit,
     watch,
     getValues,
@@ -81,9 +83,6 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
     targetAgeCount: values.targetAges?.length ?? 0,
     skillLevelCount: values.skillLevels?.length ?? 0,
   });
-
-  // 画像プレビュー用（入力中のURL）
-  const imageUrl = values.profileImageUrl?.trim();
 
   async function submit(mode: SaveMode) {
     setFormMessage(null);
@@ -147,27 +146,18 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
           <CardTitle>基本情報</CardTitle>
         </CardHeader>
         <div className="space-y-5">
-          {/* プロフィール写真（URL指定・現時点） */}
-          <FormField>
-            <Label htmlFor="profileImageUrl">プロフィール写真（画像URL）</Label>
-            {imageUrl && (
-              // 外部の任意URLを表示するため next/image ではなく img を使用
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={imageUrl}
-                alt="プロフィール写真プレビュー"
-                className="mb-3 h-24 w-24 rounded-full border border-border object-cover"
+          <Controller
+            name="profileImageUrl"
+            control={control}
+            render={({ field }) => (
+              <ProfileImageUpload
+                value={field.value ?? ""}
+                onChange={field.onChange}
+                fieldError={errors.profileImageUrl?.message}
+                disabled={isSubmitting}
               />
             )}
-            <Input
-              id="profileImageUrl"
-              type="url"
-              placeholder="https://example.com/photo.jpg"
-              hasError={!!errors.profileImageUrl}
-              {...register("profileImageUrl")}
-            />
-            <InputErrorMessage message={errors.profileImageUrl?.message} />
-          </FormField>
+          />
 
           <FormField>
             <Label htmlFor="displayName" required>

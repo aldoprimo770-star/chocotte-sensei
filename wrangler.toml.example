@@ -20,3 +20,11 @@ compatibility_flags = ["nodejs_compat"]
 #   wrangler secret put DATABASE_URL
 #   wrangler secret put AUTH_SECRET
 #   wrangler secret put PAYPAL_CLIENT_SECRET
+
+# R2（プロフィール画像）— wrangler.jsonc の r2_buckets / vars を参照
+# バケット作成: wrangler r2 bucket create chocotte-sensei-profile-images
+# [[r2_buckets]]
+# binding = "PROFILE_IMAGES"
+# bucket_name = "chocotte-sensei-profile-images"
+# [vars]
+# R2_PUBLIC_URL = "https://pub-xxxx.r2.dev"

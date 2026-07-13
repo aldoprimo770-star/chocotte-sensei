@@ -9,5 +9,14 @@
 	"assets": {
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"
+	},
+	"r2_buckets": [
+		{
+			"binding": "PROFILE_IMAGES",
+			"bucket_name": "chocotte-sensei-profile-images"
+		}
+	],
+	"vars": {
+		"R2_PUBLIC_URL": "https://pub-4c9f6da2da5842389e4fe7dc17303edd.r2.dev"
 	}
 }

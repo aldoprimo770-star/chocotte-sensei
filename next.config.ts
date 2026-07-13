@@ -3,6 +3,12 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /** X-Powered-By ヘッダーを非表示（情報漏洩防止） */
   poweredByHeader: false,
+  /** プロフィール画像アップロード（最大5MB） */
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "5mb",
+    },
+  },
   /**
    * workerd 向けエントリを正しく解決するため外部化（OpenNext 公式）
    * https://opennext.js.org/cloudflare/howtos/workerd
