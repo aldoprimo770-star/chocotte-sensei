@@ -85,7 +85,6 @@ export function ProfileImageUpload({
         id="profileImageFile"
         type="file"
         accept="image/jpeg,image/png,image/webp"
-        capture="user"
         className="sr-only"
         disabled={disabled || uploading}
         onChange={(e) => {
@@ -107,7 +106,7 @@ export function ProfileImageUpload({
       </div>
 
       <p className="mt-2 text-xs text-muted">
-        JPEG・PNG・WebP形式、5MB以内。スマホではカメラ撮影も利用できます。
+        JPEG・PNG・WebP形式、5MB以内。スマホではカメラ撮影・フォトライブラリから選択できます。
       </p>
 
       {uploadError && (
