@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -88,6 +89,14 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
           {...register("password")}
         />
         <InputErrorMessage message={errors.password?.message} />
+        <p className="mt-1.5 text-right">
+          <Link
+            href="/forgot-password"
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            パスワードを忘れた方はこちら
+          </Link>
+        </p>
       </FormField>
 
       <Button type="submit" fullWidth disabled={isSubmitting}>

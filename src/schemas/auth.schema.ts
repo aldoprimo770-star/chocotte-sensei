@@ -54,6 +54,27 @@ export const loginSchema = z.object({
   password: z.string().min(1, { message: "パスワードを入力してください" }),
 });
 
+/** パスワード再設定メール送信フォーム */
+export const forgotPasswordSchema = z.object({
+  email: emailSchema,
+});
+
+/** 新しいパスワード設定フォーム */
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().min(1, { message: "再設定リンクが無効です" }),
+    password: passwordSchema,
+    passwordConfirm: z
+      .string()
+      .min(1, { message: "確認用パスワードを入力してください" }),
+  })
+  .refine((data) => data.password === data.passwordConfirm, {
+    message: "パスワードが一致しません",
+    path: ["passwordConfirm"],
+  });
+
 /** フォームから受け取る入力値の型（型安全のため schema から導出） */
 export type TeacherRegisterInput = z.infer<typeof teacherRegisterSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

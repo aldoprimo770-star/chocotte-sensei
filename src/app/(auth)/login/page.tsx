@@ -16,9 +16,9 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl?: string }>;
+  searchParams: Promise<{ callbackUrl?: string; reset?: string }>;
 }) {
-  const { callbackUrl } = await searchParams;
+  const { callbackUrl, reset } = await searchParams;
 
   return (
     <Card>
@@ -28,6 +28,12 @@ export default async function LoginPage({
           メールアドレスとパスワードでログインしてください
         </CardDescription>
       </CardHeader>
+
+      {reset === "success" && (
+        <p className="mb-4 rounded-xl bg-primary-light px-4 py-3 text-sm text-primary">
+          パスワードを更新しました。新しいパスワードでログインしてください。
+        </p>
+      )}
 
       <LoginForm callbackUrl={callbackUrl} />
 
