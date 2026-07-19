@@ -112,11 +112,24 @@ enum IdentityDocumentType {
   PASSPORT // パスポート
 }
 
-/// 本人確認の審査ステータス
+/// 本人確認申請レコード側の審査ステータス（IdentityVerification.status）
 enum VerificationStatus {
   PENDING // 審査待ち
   APPROVED // 承認
   REJECTED // 却下
+}
+
+/**
+ * TeacherProfile に保持する本人確認の集約ステータス（高速表示・検索用）
+ *
+ * IdentityVerification（書類申請）の結果をここに同期する。
+ * 将来メール認証・電話番号認証などを追加する場合は、別チャネルの結果を
+ * 集約するか、TeacherAuthFactor 等のテーブルを追加して拡張する。
+ */
+enum IdentityVerificationStatus {
+  PENDING // 審査待ち
+  VERIFIED // 本人確認済み
+  REJECTED // 差し戻し
 }
 
 /// 通知の種類（将来の拡張に備え汎用的に定義）
@@ -210,7 +223,16 @@ model TeacherProfile {
   // 新規受付ON/OFF（生徒の受け入れ可否）
   isAcceptingStudents Boolean       @default(true) @map("is_accepting_students")
   isPublic            Boolean       @default(false) @map("is_public") // 公開・非公開
-  isVerified          Boolean       @default(false) @map("is_verified") // 本人確認済み
+  /**
+   * 本人確認済みフラグ（互換・検索高速化用）。
+   * identityVerificationStatus === VERIFIED と常に同期する。
+   */
+  isVerified          Boolean       @default(false) @map("is_verified")
+  /**
+   * 本人確認集約ステータス（null = 未申請）。
+   * 公開バッジ表示・管理画面・先生マイページの判定に使う。
+   */
+  identityVerificationStatus IdentityVerificationStatus? @map("identity_verification_status")
   status              ProfileStatus @default(DRAFT) // 審査ステータス
   // プロフィール完成率（0〜100）。入力済み項目数から算出しUIの促進に利用
   profileCompletion   Int           @default(0) @map("profile_completion")
@@ -241,6 +263,8 @@ model TeacherProfile {
   @@index([ageRange])
   @@index([teachingYears])
   @@index([priceMin]) // 参考価格（下限）での範囲検索・並び替え
+  @@index([isVerified]) // 本人確認済みでの絞り込み（検索高速化）
+  @@index([identityVerificationStatus])
   @@map("teacher_profiles")
 }
 

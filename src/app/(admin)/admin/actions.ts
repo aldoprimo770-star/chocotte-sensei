@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { InquiryStatus } from "@prisma/client";
+import type { IdentityVerificationStatus, InquiryStatus } from "@prisma/client";
 import { getDb } from "@/lib/db";
 import { requireRole } from "@/lib/auth/session";
 import { recalcTeacherRating } from "@/lib/review/review";
@@ -14,6 +14,10 @@ import {
   announcementCreateSchema,
   announcementUpdateSchema,
 } from "@/schemas/announcement.schema";
+import {
+  profileStatusToApplicationStatus,
+  teacherIdentityFields,
+} from "@/lib/verification/status";
 import type { FormActionResult } from "@/types/action";
 
 /** カテゴリー変更後に一覧・公開ページを再検証する */
@@ -175,7 +179,7 @@ export async function revealPurchaseContactAction(
 
 /**
  * 本人確認を承認する。
- * 申請を APPROVED にし、対象先生の isVerified を true にする。
+ * 申請を APPROVED、プロフィールを VERIFIED / isVerified=true にする。
  */
 export async function approveVerificationAction(
   verificationId: string,
@@ -191,7 +195,6 @@ export async function approveVerificationAction(
       return { success: false, error: "申請が見つかりません。" };
     }
 
-    // 申請の承認と先生プロフィールの本人確認フラグを同時に更新
     await getDb().$transaction([
       getDb().identityVerification.update({
         where: { id: verificationId },
@@ -204,12 +207,15 @@ export async function approveVerificationAction(
       }),
       getDb().teacherProfile.update({
         where: { id: verification.teacherId },
-        data: { isVerified: true },
+        data: teacherIdentityFields("VERIFIED"),
       }),
     ]);
 
     revalidatePath("/admin/verifications");
+    revalidatePath("/admin/teachers");
     revalidatePath("/admin");
+    revalidatePath("/verification");
+    revalidatePath("/dashboard");
     return { success: true };
   } catch {
     return { success: false, error: "承認に失敗しました。" };
@@ -218,7 +224,7 @@ export async function approveVerificationAction(
 
 /**
  * 本人確認を却下する。
- * 却下理由を保存し、先生の isVerified を false に戻す。
+ * 却下理由を保存し、プロフィールを REJECTED / isVerified=false にする。
  */
 export async function rejectVerificationAction(
   verificationId: string,
@@ -252,15 +258,89 @@ export async function rejectVerificationAction(
       }),
       getDb().teacherProfile.update({
         where: { id: verification.teacherId },
-        data: { isVerified: false },
+        data: teacherIdentityFields("REJECTED"),
       }),
     ]);
 
     revalidatePath("/admin/verifications");
+    revalidatePath("/admin/teachers");
     revalidatePath("/admin");
+    revalidatePath("/verification");
+    revalidatePath("/dashboard");
     return { success: true };
   } catch {
     return { success: false, error: "却下に失敗しました。" };
+  }
+}
+
+/**
+ * 先生管理画面から本人確認ステータスを切り替える。
+ * IdentityVerification がある場合は申請レコードも同期する。
+ */
+export async function setTeacherIdentityVerificationStatusAction(
+  teacherId: string,
+  status: IdentityVerificationStatus,
+  rejectReason?: string,
+): Promise<FormActionResult> {
+  const session = await requireRole("ADMIN");
+
+  if (
+    status !== "PENDING" &&
+    status !== "VERIFIED" &&
+    status !== "REJECTED"
+  ) {
+    return { success: false, error: "不正なステータスです。" };
+  }
+
+  const trimmedReason = rejectReason?.trim() ?? "";
+  if (status === "REJECTED" && !trimmedReason) {
+    return {
+      success: false,
+      error: "差し戻しの場合は管理者コメントを入力してください。",
+    };
+  }
+
+  try {
+    const teacher = await getDb().teacherProfile.findUnique({
+      where: { id: teacherId },
+      select: {
+        id: true,
+        verification: { select: { id: true } },
+      },
+    });
+    if (!teacher) {
+      return { success: false, error: "先生が見つかりません。" };
+    }
+
+    await getDb().$transaction(async (tx) => {
+      await tx.teacherProfile.update({
+        where: { id: teacherId },
+        data: teacherIdentityFields(status),
+      });
+
+      if (teacher.verification) {
+        await tx.identityVerification.update({
+          where: { id: teacher.verification.id },
+          data: {
+            status: profileStatusToApplicationStatus(status),
+            rejectReason:
+              status === "REJECTED" ? trimmedReason.slice(0, 500) : null,
+            reviewedAt: new Date(),
+            reviewedBy: session.user.id,
+          },
+        });
+      }
+    });
+
+    revalidatePath("/admin/teachers");
+    revalidatePath("/admin/verifications");
+    revalidatePath("/admin");
+    revalidatePath("/verification");
+    revalidatePath("/dashboard");
+    revalidatePath("/teachers");
+    return { success: true };
+  } catch {
+    return { success: false, error: "本人確認ステータスの更新に失敗しました。" };
   }
 }
 

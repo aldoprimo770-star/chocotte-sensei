@@ -20,9 +20,19 @@ export async function getAdminTeachers() {
       profileImageUrl: true,
       isPublic: true,
       status: true,
+      isVerified: true,
+      identityVerificationStatus: true,
       createdAt: true,
       categories: { select: { category: { select: { name: true } } } },
       areas: { select: { prefecture: true } },
+      // 本人確認画像・差し戻しコメント（管理者のみ・一覧でインライン表示）
+      verification: {
+        select: {
+          id: true,
+          status: true,
+          rejectReason: true,
+        },
+      },
     },
   });
 }

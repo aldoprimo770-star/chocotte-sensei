@@ -22,6 +22,11 @@ export function VerificationRowActions({
 
   function approve() {
     setError(null);
+    const ok = window.confirm(
+      "この申請を承認して「本人確認済み」にしますか？\n公開プロフィールと一覧に ✅ 本人確認済み バッジが表示されます。",
+    );
+    if (!ok) return;
+
     startTransition(async () => {
       const result = await approveVerificationAction(verificationId);
       if (!result.success) setError(result.error ?? "失敗しました。");

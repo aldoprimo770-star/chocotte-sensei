@@ -9,6 +9,7 @@ import {
   deleteObjectFromR2,
   getProfileImagesBucket,
 } from "@/lib/r2/storage";
+import { teacherIdentityFields } from "@/lib/verification/status";
 import type { FormActionResult } from "@/types/action";
 
 /**
@@ -59,26 +60,32 @@ export async function submitVerificationAction(
       return { success: false, error: "すでに本人確認は承認済みです。" };
     }
 
-    await getDb().identityVerification.upsert({
-      where: { teacherId: profile.id },
-      create: {
-        teacherId: profile.id,
-        documentType,
-        documentUrl,
-        note: note ?? null,
-        status: "PENDING",
-      },
-      update: {
-        documentType,
-        documentUrl,
-        note: note ?? null,
-        // 再申請：審査中に戻し、前回の却下理由・審査記録をクリア
-        status: "PENDING",
-        rejectReason: null,
-        reviewedAt: null,
-        reviewedBy: null,
-      },
-    });
+    await getDb().$transaction([
+      getDb().identityVerification.upsert({
+        where: { teacherId: profile.id },
+        create: {
+          teacherId: profile.id,
+          documentType,
+          documentUrl,
+          note: note ?? null,
+          status: "PENDING",
+        },
+        update: {
+          documentType,
+          documentUrl,
+          note: note ?? null,
+          // 再申請：審査中に戻し、前回の却下理由・審査記録をクリア
+          status: "PENDING",
+          rejectReason: null,
+          reviewedAt: null,
+          reviewedBy: null,
+        },
+      }),
+      getDb().teacherProfile.update({
+        where: { id: profile.id },
+        data: teacherIdentityFields("PENDING"),
+      }),
+    ]);
 
     // 差し替えられた旧 R2 オブジェクトを削除（失敗しても申請自体は成功）
     if (existing?.documentUrl && existing.documentUrl !== documentUrl) {
@@ -92,7 +99,9 @@ export async function submitVerificationAction(
     }
 
     revalidatePath("/verification");
+    revalidatePath("/dashboard");
     revalidatePath("/admin/verifications");
+    revalidatePath("/admin/teachers");
     revalidatePath("/admin");
     return { success: true };
   } catch {

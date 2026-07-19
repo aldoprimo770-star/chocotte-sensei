@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth/session";
 import { getTeacherProfileByUserId } from "@/lib/teacher/profile";
+import { getVerificationByTeacherId } from "@/lib/verification/verification";
+import { IDENTITY_VERIFICATION_STATUS_LABELS } from "@/constants/verification";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,6 +13,11 @@ import {
 } from "@/components/ui/card";
 import { CompletionBar } from "@/components/teacher/completion-bar";
 import { VerifiedBadge } from "@/components/teacher/verified-badge";
+import { StatusBadge } from "@/components/admin/status-badge";
+import {
+  resolveIdentityVerificationStatus,
+  showVerifiedBadge,
+} from "@/lib/verification/status";
 
 export const metadata: Metadata = {
   title: "先生ダッシュボード",
@@ -18,7 +25,7 @@ export const metadata: Metadata = {
 
 /**
  * 先生ダッシュボード
- * プロフィール完成率・公開状態を表示し、編集/プレビューへ誘導します。
+ * プロフィール完成率・公開状態・本人確認状況を表示します。
  */
 export default async function TeacherDashboardPage() {
   const session = await requireRole("TEACHER");
@@ -27,6 +34,29 @@ export default async function TeacherDashboardPage() {
   if (!profile) {
     notFound();
   }
+
+  const verification = await getVerificationByTeacherId(profile.id);
+  const identityStatus = resolveIdentityVerificationStatus({
+    identityVerificationStatus: profile.identityVerificationStatus,
+    isVerified: profile.isVerified,
+    applicationStatus: verification?.status,
+  });
+  const identityStyle = identityStatus
+    ? IDENTITY_VERIFICATION_STATUS_LABELS[identityStatus]
+    : null;
+
+  const identityDescription = (() => {
+    switch (identityStatus) {
+      case "VERIFIED":
+        return "本人確認が完了しています。公開プロフィールにバッジが表示されます。";
+      case "PENDING":
+        return "現在審査中です。承認までしばらくお待ちください。";
+      case "REJECTED":
+        return "差し戻しになりました。内容を確認のうえ再申請してください。";
+      default:
+        return "本人確認を行うと「本人確認済み」バッジが表示され、信頼性が高まります";
+    }
+  })();
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
@@ -69,16 +99,38 @@ export default async function TeacherDashboardPage() {
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>本人確認</CardTitle>
-          <CardDescription>
-            {profile.isVerified
-              ? "本人確認が完了しています"
-              : "本人確認を行うと「本人確認済み」バッジが表示され、信頼性が高まります"}
-          </CardDescription>
+          <CardDescription>{identityDescription}</CardDescription>
         </CardHeader>
-        <div className="flex items-center gap-3">
-          {profile.isVerified && <VerifiedBadge />}
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {identityStyle ? (
+              <StatusBadge
+                label={identityStyle.label}
+                className={identityStyle.className}
+              />
+            ) : (
+              <span className="text-sm text-muted">未申請</span>
+            )}
+            {showVerifiedBadge(profile) && <VerifiedBadge />}
+          </div>
+
+          {identityStatus === "REJECTED" && verification?.rejectReason && (
+            <div className="rounded-xl bg-accent-light px-4 py-3 text-sm text-accent">
+              <p className="font-medium">管理者コメント</p>
+              <p className="mt-1 whitespace-pre-wrap">
+                {verification.rejectReason}
+              </p>
+            </div>
+          )}
+
           <Button href="/verification" variant="outline" size="sm">
-            {profile.isVerified ? "確認状況を見る" : "本人確認を申請する"}
+            {identityStatus === "VERIFIED"
+              ? "確認状況を見る"
+              : identityStatus === "PENDING"
+                ? "申請状況を見る"
+                : identityStatus === "REJECTED"
+                  ? "再申請する"
+                  : "本人確認を申請する"}
           </Button>
         </div>
       </Card>

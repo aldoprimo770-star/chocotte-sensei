@@ -18,6 +18,7 @@ import {
 } from "@/constants/teacher";
 import { extractYouTubeId } from "@/lib/validation";
 import { formatPriceRange } from "@/lib/teacher/format";
+import { showVerifiedBadge } from "@/lib/verification/status";
 import type { TeacherContactInfo } from "@/lib/teacher/profile";
 
 /**
@@ -42,6 +43,11 @@ export interface ProfileViewData {
   isOnline: boolean;
   isAcceptingStudents: boolean;
   isVerified: boolean;
+  identityVerificationStatus?:
+    | "PENDING"
+    | "VERIFIED"
+    | "REJECTED"
+    | null;
   ratingAverage: number;
   reviewCount: number;
   categories: { category: { name: string } }[];
@@ -108,7 +114,7 @@ export function TeacherProfileView({
 
         {/* バッジ */}
         <div className="mt-4 flex flex-wrap justify-center gap-2">
-          {profile.isVerified && <VerifiedBadge />}
+          {showVerifiedBadge(profile) && <VerifiedBadge />}
           {(profile.teachingMethod
             ? teachingMethodToIsOnline(profile.teachingMethod)
             : profile.isOnline) && (

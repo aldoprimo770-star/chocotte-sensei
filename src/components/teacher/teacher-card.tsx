@@ -7,6 +7,7 @@ import {
   type FavoriteInteraction,
 } from "@/components/student/favorite-button";
 import { formatPriceRange } from "@/lib/teacher/format";
+import { showVerifiedBadge } from "@/lib/verification/status";
 import type { TeacherCardData } from "@/lib/teacher/search";
 
 /**
@@ -85,7 +86,7 @@ export function TeacherCard({
 
           {/* バッジ */}
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {teacher.isVerified && <VerifiedBadge size="sm" />}
+            {showVerifiedBadge(teacher) && <VerifiedBadge size="sm" />}
             {teacher.isOnline && (
               <Badge color="accent">オンライン対応</Badge>
             )}

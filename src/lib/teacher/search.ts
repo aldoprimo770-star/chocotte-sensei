@@ -171,6 +171,8 @@ export const TEACHER_CARD_SELECT = {
   teachingMethod: true,
   isAcceptingStudents: true,
   isVerified: true,
+  // カード表示は isVerified を主に使う（インデックス済み）。集約ステータスも軽量に同梱
+  identityVerificationStatus: true,
   ratingAverage: true,
   reviewCount: true,
   categories: { select: { category: { select: { name: true } } } },

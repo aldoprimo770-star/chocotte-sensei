@@ -47,6 +47,7 @@ export const TEACHER_PUBLIC_SELECT = {
   hasTrial: true,
   isAcceptingStudents: true,
   isVerified: true,
+  identityVerificationStatus: true,
   ratingAverage: true,
   reviewCount: true,
   viewCount: true,
