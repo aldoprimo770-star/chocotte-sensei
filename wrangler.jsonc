@@ -20,11 +20,9 @@
 		}
 	],
 	"vars": {
-		"R2_PUBLIC_URL": "https://pub-4c9f6da2da5842389e4fe7dc17303edd.r2.dev",
-		// Cloudflare Turnstile のサイトキー（公開値）。
-		// 本番では必ず自分のウィジェットのサイトキーに置き換えること。
-		// 下記はテスト用キー（常に検証成功＝スパム対策として機能しない）。
-		// TURNSTILE_SECRET_KEY は vars ではなく Cloudflare の Secret として登録する。
-		"TURNSTILE_SITE_KEY": "1x00000000000000000000AA"
+		"R2_PUBLIC_URL": "https://pub-4c9f6da2da5842389e4fe7dc17303edd.r2.dev"
+		// Turnstile のサイトキーは NEXT_PUBLIC_TURNSTILE_SITE_KEY として
+		// ビルド時に埋め込むため、ここ（実行時 vars）には置かない。
+		// TURNSTILE_SECRET_KEY は Cloudflare の Secret（暗号化）として登録する。
 	}
 }

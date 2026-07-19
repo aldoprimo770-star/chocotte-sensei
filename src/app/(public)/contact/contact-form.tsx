@@ -10,21 +10,23 @@ import { FormField, Input, InputErrorMessage } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { TurnstileWidget } from "@/components/security/turnstile-widget";
-
-/** スパム対策の認証失敗時に表示する共通メッセージ */
-const TURNSTILE_ERROR_MESSAGE =
-  "スパム対策の認証に失敗しました。もう一度お試しください。";
+import { useTurnstile } from "@/components/security/use-turnstile";
+import { TURNSTILE_ERROR_MESSAGE } from "@/constants/turnstile";
 
 /**
  * お問い合わせフォーム（クライアントコンポーネント）
  * 送信に成功すると同一ページ内で「送信完了」表示に切り替えます。
  */
-export function ContactForm({ turnstileSiteKey }: { turnstileSiteKey: string }) {
+export function ContactForm() {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
-  // 値を変えると Turnstile ウィジェットをリセットする（トークンは単回利用）
-  const [turnstileResetSignal, setTurnstileResetSignal] = useState(0);
+  const {
+    siteKey,
+    token: turnstileToken,
+    setToken: setTurnstileToken,
+    resetSignal: turnstileResetSignal,
+    reset: resetTurnstile,
+  } = useTurnstile();
 
   const {
     register,
@@ -34,11 +36,6 @@ export function ContactForm({ turnstileSiteKey }: { turnstileSiteKey: string }) 
   } = useForm<ContactInput>({
     resolver: zodResolver(contactSchema),
   });
-
-  function resetTurnstile() {
-    setTurnstileToken(null);
-    setTurnstileResetSignal((n) => n + 1);
-  }
 
   async function onSubmit(values: ContactInput) {
     setFormError(null);
@@ -161,9 +158,9 @@ export function ContactForm({ turnstileSiteKey }: { turnstileSiteKey: string }) 
       </FormField>
 
       {/* スパム対策（Cloudflare Turnstile） */}
-      {turnstileSiteKey ? (
+      {siteKey ? (
         <TurnstileWidget
-          siteKey={turnstileSiteKey}
+          siteKey={siteKey}
           onToken={setTurnstileToken}
           resetSignal={turnstileResetSignal}
         />
@@ -176,7 +173,7 @@ export function ContactForm({ turnstileSiteKey }: { turnstileSiteKey: string }) 
       <Button
         type="submit"
         fullWidth
-        disabled={isSubmitting || !turnstileSiteKey || !turnstileToken}
+        disabled={isSubmitting || !siteKey || !turnstileToken}
       >
         {isSubmitting ? "送信中..." : "送信する"}
       </Button>

@@ -1,11 +1,14 @@
 "use server";
 
 import { AuthError } from "next-auth";
+import { headers } from "next/headers";
 import type { UserRole } from "@prisma/client";
 import { getDb } from "@/lib/db";
 import { signIn, signOut } from "@/auth";
 import { hashPassword } from "@/lib/auth/password";
 import { generateTeacherSlug } from "@/lib/slug";
+import { verifyTurnstileToken } from "@/lib/turnstile/verify";
+import { TURNSTILE_ERROR_MESSAGE } from "@/constants/turnstile";
 import {
   loginSchema,
   teacherRegisterSchema,
@@ -16,6 +19,16 @@ import {
   studentRegisterSchema,
   type StudentRegisterInput,
 } from "@/schemas/student.schema";
+
+/**
+ * Turnstile トークンをサーバー側で検証する共通処理。
+ * 検証に成功した場合のみ true を返す。
+ */
+async function isTurnstileValid(token: string | undefined): Promise<boolean> {
+  const remoteIp = (await headers()).get("cf-connecting-ip") ?? undefined;
+  const result = await verifyTurnstileToken(token, remoteIp);
+  return result.success;
+}
 
 /**
  * Server Action の共通の戻り値型
@@ -40,11 +53,17 @@ export type LoginResult =
  */
 export async function registerTeacherAction(
   input: TeacherRegisterInput,
+  turnstileToken?: string,
 ): Promise<ActionResult> {
   // 1. サーバー側バリデーション（クライアントを信用しない）
   const parsed = teacherRegisterSchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, error: "入力内容に誤りがあります" };
+  }
+
+  // スパム対策: Turnstile を必ずサーバー側で検証（成功時のみ続行）
+  if (!(await isTurnstileValid(turnstileToken))) {
+    return { success: false, error: TURNSTILE_ERROR_MESSAGE };
   }
 
   const { displayName, email, password } = parsed.data;
@@ -102,10 +121,16 @@ export async function registerTeacherAction(
  */
 export async function registerStudentAction(
   input: StudentRegisterInput,
+  turnstileToken?: string,
 ): Promise<ActionResult> {
   const parsed = studentRegisterSchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, error: "入力内容に誤りがあります" };
+  }
+
+  // スパム対策: Turnstile を必ずサーバー側で検証（成功時のみ続行）
+  if (!(await isTurnstileValid(turnstileToken))) {
+    return { success: false, error: TURNSTILE_ERROR_MESSAGE };
   }
 
   const { displayName, email, password } = parsed.data;

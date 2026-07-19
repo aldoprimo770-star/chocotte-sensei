@@ -9,10 +9,7 @@ import {
   sendContactAutoReply,
 } from "@/lib/email/contact-email";
 import { verifyTurnstileToken } from "@/lib/turnstile/verify";
-
-/** スパム対策の認証失敗時に返す共通メッセージ */
-const TURNSTILE_ERROR_MESSAGE =
-  "スパム対策の認証に失敗しました。もう一度お試しください。";
+import { TURNSTILE_ERROR_MESSAGE } from "@/constants/turnstile";
 
 /**
  * 管理者への通知先メールアドレスを決定する。

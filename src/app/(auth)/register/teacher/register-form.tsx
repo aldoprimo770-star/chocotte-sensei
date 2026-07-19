@@ -12,6 +12,9 @@ import { registerTeacherAction } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { FormField, Input, InputErrorMessage } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TurnstileWidget } from "@/components/security/turnstile-widget";
+import { useTurnstile } from "@/components/security/use-turnstile";
+import { TURNSTILE_ERROR_MESSAGE } from "@/constants/turnstile";
 
 /**
  * 先生 新規登録フォーム（クライアントコンポーネント）
@@ -23,6 +26,13 @@ import { Label } from "@/components/ui/label";
 export function TeacherRegisterForm() {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
+  const {
+    siteKey,
+    token: turnstileToken,
+    setToken: setTurnstileToken,
+    resetSignal: turnstileResetSignal,
+    reset: resetTurnstile,
+  } = useTurnstile();
 
   const {
     register,
@@ -34,7 +44,13 @@ export function TeacherRegisterForm() {
 
   async function onSubmit(values: TeacherRegisterInput) {
     setFormError(null);
-    const result = await registerTeacherAction(values);
+
+    if (!turnstileToken) {
+      setFormError(TURNSTILE_ERROR_MESSAGE);
+      return;
+    }
+
+    const result = await registerTeacherAction(values, turnstileToken);
 
     if (result.success) {
       router.refresh();
@@ -42,6 +58,8 @@ export function TeacherRegisterForm() {
       return;
     }
 
+    // 失敗時はトークンが無効化されるためウィジェットをリセット
+    resetTurnstile();
     setFormError(result.error);
   }
 
@@ -116,7 +134,24 @@ export function TeacherRegisterForm() {
         <InputErrorMessage message={errors.passwordConfirm?.message} />
       </FormField>
 
-      <Button type="submit" fullWidth disabled={isSubmitting}>
+      {/* スパム対策（Cloudflare Turnstile） */}
+      {siteKey ? (
+        <TurnstileWidget
+          siteKey={siteKey}
+          onToken={setTurnstileToken}
+          resetSignal={turnstileResetSignal}
+        />
+      ) : (
+        <p className="rounded-xl bg-accent-light px-4 py-3 text-sm text-accent">
+          スパム対策の認証が利用できません。時間をおいて再度お試しください。
+        </p>
+      )}
+
+      <Button
+        type="submit"
+        fullWidth
+        disabled={isSubmitting || !siteKey || !turnstileToken}
+      >
         {isSubmitting ? "登録中..." : "先生登録（無料）"}
       </Button>
     </form>
