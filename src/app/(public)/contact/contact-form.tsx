@@ -9,14 +9,22 @@ import { Button } from "@/components/ui/button";
 import { FormField, Input, InputErrorMessage } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { TurnstileWidget } from "@/components/security/turnstile-widget";
+
+/** スパム対策の認証失敗時に表示する共通メッセージ */
+const TURNSTILE_ERROR_MESSAGE =
+  "スパム対策の認証に失敗しました。もう一度お試しください。";
 
 /**
  * お問い合わせフォーム（クライアントコンポーネント）
  * 送信に成功すると同一ページ内で「送信完了」表示に切り替えます。
  */
-export function ContactForm() {
+export function ContactForm({ turnstileSiteKey }: { turnstileSiteKey: string }) {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  // 値を変えると Turnstile ウィジェットをリセットする（トークンは単回利用）
+  const [turnstileResetSignal, setTurnstileResetSignal] = useState(0);
 
   const {
     register,
@@ -27,14 +35,29 @@ export function ContactForm() {
     resolver: zodResolver(contactSchema),
   });
 
+  function resetTurnstile() {
+    setTurnstileToken(null);
+    setTurnstileResetSignal((n) => n + 1);
+  }
+
   async function onSubmit(values: ContactInput) {
     setFormError(null);
-    const result = await submitContactAction(values);
+
+    // トークン未取得なら送信せずエラー表示
+    if (!turnstileToken) {
+      setFormError(TURNSTILE_ERROR_MESSAGE);
+      return;
+    }
+
+    const result = await submitContactAction(values, turnstileToken);
 
     if (result.success) {
       setSubmitted(true);
       return;
     }
+
+    // 送信失敗時はトークンが無効化されるため、必ずウィジェットをリセット
+    resetTurnstile();
 
     if (result.fieldErrors) {
       for (const [field, message] of Object.entries(result.fieldErrors)) {
@@ -137,7 +160,24 @@ export function ContactForm() {
         <InputErrorMessage message={errors.message?.message} />
       </FormField>
 
-      <Button type="submit" fullWidth disabled={isSubmitting}>
+      {/* スパム対策（Cloudflare Turnstile） */}
+      {turnstileSiteKey ? (
+        <TurnstileWidget
+          siteKey={turnstileSiteKey}
+          onToken={setTurnstileToken}
+          resetSignal={turnstileResetSignal}
+        />
+      ) : (
+        <p className="rounded-xl bg-accent-light px-4 py-3 text-sm text-accent">
+          スパム対策の認証が利用できません。時間をおいて再度お試しください。
+        </p>
+      )}
+
+      <Button
+        type="submit"
+        fullWidth
+        disabled={isSubmitting || !turnstileSiteKey || !turnstileToken}
+      >
         {isSubmitting ? "送信中..." : "送信する"}
       </Button>
     </form>

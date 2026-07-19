@@ -10,8 +10,13 @@ export const metadata: Metadata = buildMetadata({
   path: "/contact",
 });
 
+// Turnstile のサイトキーを実行時の環境変数から読むためプリレンダーしない
+export const dynamic = "force-dynamic";
+
 /** お問い合わせページ */
 export default function ContactPage() {
+  const turnstileSiteKey = process.env.TURNSTILE_SITE_KEY?.trim() ?? "";
+
   return (
     <div>
       <PageHeader
@@ -19,7 +24,7 @@ export default function ContactPage() {
         subtitle="サービスに関するご質問・ご要望をお気軽にお寄せください"
       />
       <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:px-8">
-        <ContactForm />
+        <ContactForm turnstileSiteKey={turnstileSiteKey} />
       </div>
     </div>
   );

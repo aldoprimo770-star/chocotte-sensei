@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { getDb } from "@/lib/db";
 import { contactSchema, type ContactInput } from "@/schemas/contact.schema";
 import type { FormActionResult } from "@/types/action";
@@ -7,6 +8,11 @@ import {
   sendContactAdminNotification,
   sendContactAutoReply,
 } from "@/lib/email/contact-email";
+import { verifyTurnstileToken } from "@/lib/turnstile/verify";
+
+/** スパム対策の認証失敗時に返す共通メッセージ */
+const TURNSTILE_ERROR_MESSAGE =
+  "スパム対策の認証に失敗しました。もう一度お試しください。";
 
 /**
  * 管理者への通知先メールアドレスを決定する。
@@ -70,6 +76,7 @@ async function notifyContact(payload: ContactInput): Promise<void> {
  */
 export async function submitContactAction(
   input: ContactInput,
+  turnstileToken?: string,
 ): Promise<FormActionResult> {
   const parsed = contactSchema.safeParse(input);
 
@@ -87,6 +94,14 @@ export async function submitContactAction(
       error: "入力内容をご確認ください。",
       fieldErrors,
     };
+  }
+
+  // スパム対策: Turnstile トークンをサーバー側で必ず検証する。
+  // 検証に失敗した場合は保存・メール送信を一切行わない。
+  const remoteIp = (await headers()).get("cf-connecting-ip") ?? undefined;
+  const verification = await verifyTurnstileToken(turnstileToken, remoteIp);
+  if (!verification.success) {
+    return { success: false, error: TURNSTILE_ERROR_MESSAGE };
   }
 
   try {
