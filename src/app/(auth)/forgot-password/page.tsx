@@ -12,8 +12,12 @@ export const metadata: Metadata = {
   title: "パスワード再設定",
 };
 
+// ビルド時プリレンダーではなく毎リクエスト実行させ、SSR ログを確認可能にする
+export const dynamic = "force-dynamic";
+
 /** パスワード再設定メール送信ページ */
 export default function ForgotPasswordPage() {
+  console.info("[password-reset] forgot-password PAGE rendered (SSR)");
   return (
     <Card>
       <CardHeader>
