@@ -99,7 +99,7 @@ export default async function VerificationPage() {
               verification
                 ? {
                     documentType: verification.documentType,
-                    documentUrl: verification.documentUrl,
+                    // documentUrl は本人にも再表示しない（再アップロード必須）
                     note: verification.note ?? "",
                   }
                 : undefined

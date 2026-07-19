@@ -10,7 +10,7 @@ import { VerificationRowActions } from "./verification-row-actions";
 
 export const metadata: Metadata = { title: "本人確認管理" };
 
-/** 本人確認管理ページ（一覧 + 画像確認 + 承認/却下） */
+/** 本人確認管理ページ（一覧 + 画像表示 + 承認/却下） */
 export default async function AdminVerificationsPage() {
   const verifications = await getAdminVerifications();
 
@@ -30,7 +30,7 @@ export default async function AdminVerificationsPage() {
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
-          <table className="w-full min-w-[900px] text-left text-sm">
+          <table className="w-full min-w-[960px] text-left text-sm">
             <thead className="border-b border-gray-200 bg-gray-50 text-xs text-gray-500">
               <tr>
                 <th className="px-4 py-3 font-medium">先生</th>
@@ -44,6 +44,7 @@ export default async function AdminVerificationsPage() {
             <tbody className="divide-y divide-gray-100">
               {verifications.map((v) => {
                 const statusStyle = VERIFICATION_STATUS_LABELS[v.status];
+                const documentSrc = `/admin/verifications/${v.id}/document`;
                 return (
                   <tr key={v.id} className="align-top">
                     <td className="px-4 py-3">
@@ -68,14 +69,20 @@ export default async function AdminVerificationsPage() {
                       {getDocumentTypeLabel(v.documentType)}
                     </td>
                     <td className="px-4 py-3">
-                      {/* 画像確認は管理者のみ。別タブで開く */}
                       <a
-                        href={v.documentUrl}
+                        href={documentSrc}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs font-medium text-primary hover:underline"
+                        className="block w-28"
+                        title="クリックで拡大表示"
                       >
-                        画像を確認
+                        {/* 管理者専用ルート経由。公開ページには出さない */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={documentSrc}
+                          alt={`${v.teacher.displayName}の本人確認書類`}
+                          className="h-20 w-28 rounded-lg border border-gray-200 object-cover bg-gray-50"
+                        />
                       </a>
                     </td>
                     <td className="px-4 py-3">

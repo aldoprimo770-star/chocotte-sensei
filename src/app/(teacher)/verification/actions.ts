@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { getDb } from "@/lib/db";
 import { requireRole } from "@/lib/auth/session";
 import { verificationSchema, type VerificationInput } from "@/schemas/verification.schema";
+import { extractIdentityDocumentKey } from "@/lib/r2/identity-document";
+import {
+  deleteObjectFromR2,
+  getProfileImagesBucket,
+} from "@/lib/r2/storage";
 import type { FormActionResult } from "@/types/action";
 
 /**
@@ -48,7 +53,7 @@ export async function submitVerificationAction(
     // 承認済みの場合は再申請を受け付けない（不要な差し戻しを防ぐ）
     const existing = await getDb().identityVerification.findUnique({
       where: { teacherId: profile.id },
-      select: { status: true },
+      select: { status: true, documentUrl: true },
     });
     if (existing?.status === "APPROVED") {
       return { success: false, error: "すでに本人確認は承認済みです。" };
@@ -74,6 +79,17 @@ export async function submitVerificationAction(
         reviewedBy: null,
       },
     });
+
+    // 差し替えられた旧 R2 オブジェクトを削除（失敗しても申請自体は成功）
+    if (existing?.documentUrl && existing.documentUrl !== documentUrl) {
+      const oldKey = extractIdentityDocumentKey(existing.documentUrl);
+      if (oldKey) {
+        const bucket = await getProfileImagesBucket();
+        if (bucket) {
+          await deleteObjectFromR2(bucket, oldKey);
+        }
+      }
+    }
 
     revalidatePath("/verification");
     revalidatePath("/admin/verifications");

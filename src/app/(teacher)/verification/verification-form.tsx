@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   verificationSchema,
@@ -12,10 +12,11 @@ import {
 import { submitVerificationAction } from "./actions";
 import { DOCUMENT_TYPE_OPTIONS } from "@/constants/verification";
 import { Button } from "@/components/ui/button";
-import { FormField, Input, InputErrorMessage } from "@/components/ui/input";
+import { FormField, InputErrorMessage } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { IdentityDocumentUpload } from "@/components/teacher/identity-document-upload";
 
 /**
  * 本人確認 申請フォーム（新規 / 再申請 共通）
@@ -33,6 +34,7 @@ export function VerificationForm({
   // 入力型(Input)と変換後の型(Values)を明示。送信は生の入力値(getValues)を渡す。
   const {
     register,
+    control,
     handleSubmit,
     getValues,
     setError,
@@ -41,7 +43,8 @@ export function VerificationForm({
     resolver: zodResolver(verificationSchema),
     defaultValues: {
       documentType: defaultValues?.documentType,
-      documentUrl: defaultValues?.documentUrl ?? "",
+      // 再申請時も画像は再アップロード必須（本人には保存画像を見せない）
+      documentUrl: "",
       note: defaultValues?.note ?? "",
     },
   });
@@ -94,22 +97,18 @@ export function VerificationForm({
         <InputErrorMessage message={errors.documentType?.message} />
       </FormField>
 
-      <FormField>
-        <Label htmlFor="documentUrl" required>
-          書類画像のURL
-        </Label>
-        <Input
-          id="documentUrl"
-          type="url"
-          placeholder="https://example.com/id.jpg"
-          hasError={!!errors.documentUrl}
-          {...register("documentUrl")}
-        />
-        <InputErrorMessage message={errors.documentUrl?.message} />
-        <p className="mt-1.5 text-xs text-muted">
-          提出画像は管理者のみが確認します。公開ページには表示されません。
-        </p>
-      </FormField>
+      <Controller
+        name="documentUrl"
+        control={control}
+        render={({ field }) => (
+          <IdentityDocumentUpload
+            value={field.value ?? ""}
+            onChange={field.onChange}
+            fieldError={errors.documentUrl?.message}
+            disabled={isSubmitting}
+          />
+        )}
+      />
 
       <FormField>
         <Label htmlFor="note">備考（任意）</Label>

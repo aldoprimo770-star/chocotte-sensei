@@ -4,8 +4,8 @@ import { getDb } from "@/lib/db";
 /**
  * 本人確認のデータ取得層（サーバー専用）
  *
- * 書類画像URL(documentUrl)は管理者・本人のみが扱う機密情報のため、
- * 公開系のクエリには絶対に含めません。
+ * 書類画像(documentUrl)は管理者のみが扱う機密情報のため、
+ * 先生本人向けクエリにも含めません（公開系にも絶対に含めない）。
  */
 
 /** 先生（TeacherProfile.id）の本人確認申請を取得。無ければ null */
@@ -15,7 +15,6 @@ export const getVerificationByTeacherId = cache(async (teacherId: string) => {
     select: {
       id: true,
       documentType: true,
-      documentUrl: true,
       note: true,
       status: true,
       rejectReason: true,
