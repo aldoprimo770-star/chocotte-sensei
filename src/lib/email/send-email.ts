@@ -4,7 +4,7 @@
  */
 
 export interface SendEmailParams {
-  to: string;
+  to: string | string[];
   subject: string;
   text: string;
   html: string;
@@ -41,16 +41,19 @@ export async function sendEmail(
   // 開発用: 送信先を強制的に固定アドレスへ振り替える。
   // Resend のテストドメイン（resend.dev）は自分の登録アドレス宛しか送れないため、
   // EMAIL_REDIRECT_TO を設定すると、どの宛先でも自分の受信箱でテストできる。
+  const originalTo = Array.isArray(params.to)
+    ? params.to.join(", ")
+    : params.to;
   const redirectTo = process.env.EMAIL_REDIRECT_TO?.trim();
   const actualTo = redirectTo || params.to;
   const subject = redirectTo
-    ? `[to: ${params.to}] ${params.subject}`
+    ? `[to: ${originalTo}] ${params.subject}`
     : params.subject;
   const redirectNoticeText = redirectTo
-    ? `※開発用リダイレクト: 本来の宛先は ${params.to} です。\n\n`
+    ? `※開発用リダイレクト: 本来の宛先は ${originalTo} です。\n\n`
     : "";
   const redirectNoticeHtml = redirectTo
-    ? `<p style="font-size:12px;color:#999;">※開発用リダイレクト: 本来の宛先は ${params.to} です。</p>`
+    ? `<p style="font-size:12px;color:#999;">※開発用リダイレクト: 本来の宛先は ${originalTo} です。</p>`
     : "";
 
   if (redirectTo) {
