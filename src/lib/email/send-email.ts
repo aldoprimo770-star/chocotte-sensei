@@ -18,6 +18,7 @@ export type SendEmailResult =
 export async function sendEmail(
   params: SendEmailParams,
 ): Promise<SendEmailResult> {
+  console.info("[email] sendEmail entered");
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.EMAIL_FROM?.trim();
 
@@ -59,6 +60,7 @@ export async function sendEmail(
   }
 
   try {
+    console.info(`[email] POST api.resend.com to=${actualTo} from=${from}`);
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
