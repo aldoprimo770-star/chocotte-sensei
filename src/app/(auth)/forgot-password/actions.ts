@@ -31,31 +31,46 @@ export async function requestPasswordResetAction(
     select: { id: true, email: true },
   });
 
-  if (user) {
-    const rawToken = generateSecureToken();
-    const tokenHash = await hashToken(rawToken);
-    const expiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS);
+  if (!user) {
+    // メール列挙を防ぐため成功を返すが、診断のためログには残す
+    console.info("[password-reset] no user matched the submitted email");
+    return {
+      success: true,
+      message: PASSWORD_RESET_REQUEST_SUCCESS_MESSAGE,
+    };
+  }
 
-    await getDb().$transaction([
-      // 未使用の旧トークンを無効化
-      getDb().passwordResetToken.deleteMany({
-        where: { userId: user.id, usedAt: null },
-      }),
-      getDb().passwordResetToken.create({
-        data: {
-          userId: user.id,
-          tokenHash,
-          expiresAt,
-        },
-      }),
-    ]);
+  const rawToken = generateSecureToken();
+  const tokenHash = await hashToken(rawToken);
+  const expiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS);
 
-    const resetUrl = `${getAppBaseUrl()}/reset-password?token=${encodeURIComponent(rawToken)}`;
-    const mailResult = await sendPasswordResetEmail(user.email, resetUrl);
+  await getDb().$transaction([
+    // 未使用の旧トークンを無効化
+    getDb().passwordResetToken.deleteMany({
+      where: { userId: user.id, usedAt: null },
+    }),
+    getDb().passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+      },
+    }),
+  ]);
 
-    if (!mailResult.ok) {
-      console.error("[password-reset] mail send failed:", mailResult.error);
-    }
+  const resetUrl = `${getAppBaseUrl()}/reset-password?token=${encodeURIComponent(rawToken)}`;
+  console.info("[password-reset] sending email. resetBase=", getAppBaseUrl());
+  const mailResult = await sendPasswordResetEmail(user.email, resetUrl);
+
+  if (!mailResult.ok) {
+    console.error(
+      "[password-reset] mail send failed:",
+      mailResult.error,
+      "status=",
+      "status" in mailResult ? mailResult.status : undefined,
+      "details=",
+      "details" in mailResult ? mailResult.details : undefined,
+    );
   }
 
   return {

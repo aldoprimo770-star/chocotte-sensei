@@ -11,8 +11,8 @@ export interface SendEmailParams {
 }
 
 export type SendEmailResult =
-  | { ok: true }
-  | { ok: false; error: string };
+  | { ok: true; id?: string }
+  | { ok: false; error: string; status?: number; details?: string };
 
 /** トランザクションメールを送信する */
 export async function sendEmail(
@@ -21,8 +21,20 @@ export async function sendEmail(
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.EMAIL_FROM?.trim();
 
+  // 設定不足を明確に切り分ける（どちらが欠けているかもログに残す）
   if (!apiKey || !from) {
-    return { ok: false, error: "メール送信が設定されていません" };
+    const missing = [
+      !apiKey ? "RESEND_API_KEY" : null,
+      !from ? "EMAIL_FROM" : null,
+    ]
+      .filter(Boolean)
+      .join(", ");
+    console.error(`[email] not configured. missing env: ${missing}`);
+    return {
+      ok: false,
+      error: "メール送信が設定されていません",
+      details: `missing env: ${missing}`,
+    };
   }
 
   try {
@@ -41,12 +53,37 @@ export async function sendEmail(
       }),
     });
 
+    // 成否に関わらず本文を読み、失敗時は原因をログへ
+    const bodyText = await response.text();
+
     if (!response.ok) {
-      return { ok: false, error: "メールの送信に失敗しました" };
+      console.error(
+        `[email] Resend responded ${response.status}: ${bodyText}`,
+      );
+      return {
+        ok: false,
+        error: "メールの送信に失敗しました",
+        status: response.status,
+        details: bodyText,
+      };
     }
 
-    return { ok: true };
-  } catch {
-    return { ok: false, error: "メールの送信に失敗しました" };
+    let id: string | undefined;
+    try {
+      id = (JSON.parse(bodyText) as { id?: string }).id;
+    } catch {
+      // 本文が JSON でなくても送信成功なら問題なし
+    }
+
+    console.info(`[email] sent via Resend. id=${id ?? "(unknown)"}`);
+    return { ok: true, id };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[email] fetch to Resend threw: ${message}`);
+    return {
+      ok: false,
+      error: "メールの送信に失敗しました",
+      details: message,
+    };
   }
 }

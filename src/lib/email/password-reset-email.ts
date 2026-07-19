@@ -1,6 +1,6 @@
 import { SITE } from "@/constants/site";
 import { PASSWORD_RESET_TOKEN_TTL_MS } from "@/constants/auth";
-import { sendEmail } from "@/lib/email/send-email";
+import { sendEmail, type SendEmailResult } from "@/lib/email/send-email";
 
 const TTL_HOURS = PASSWORD_RESET_TOKEN_TTL_MS / (60 * 60 * 1000);
 
@@ -8,7 +8,7 @@ const TTL_HOURS = PASSWORD_RESET_TOKEN_TTL_MS / (60 * 60 * 1000);
 export async function sendPasswordResetEmail(
   to: string,
   resetUrl: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<SendEmailResult> {
   const subject = `【${SITE.name}】パスワード再設定のご案内`;
 
   const text = [
