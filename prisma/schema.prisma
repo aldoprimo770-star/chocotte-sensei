@@ -446,17 +446,18 @@ model Notification {
   @@map("notifications")
 }
 
-/// サイト全体向けのお知らせ（管理者が作成）
+/// サイト全体向けのお知らせ（管理者が作成・トップページに表示）
 model Announcement {
-  id          String    @id @default(cuid())
-  title       String
-  body        String    @db.Text
-  isPublished Boolean   @default(false) @map("is_published")
-  publishedAt DateTime? @map("published_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  id           String   @id @default(cuid())
+  title        String
+  content      String   @db.Text
+  published    Boolean  @default(false)
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  @@index([isPublished, publishedAt])
+  @@index([published, displayOrder])
+  @@index([published, createdAt])
   @@map("announcements")
 }
 

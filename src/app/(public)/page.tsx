@@ -4,6 +4,7 @@ import { GENERAL_FAQS } from "@/constants/faq";
 import { getActiveCategories } from "@/lib/categories";
 import { getLatestPublishedTeachers } from "@/lib/teacher/search";
 import { getFavoriteButtonContext } from "@/lib/student/favorites";
+import { getPublishedAnnouncements } from "@/lib/announcement";
 import { JsonLd } from "@/components/seo/json-ld";
 import {
   buildOrganizationJsonLd,
@@ -15,6 +16,7 @@ import { CategoryCard } from "@/components/category/category-card";
 import { TeacherGrid } from "@/components/teacher/teacher-grid";
 import { FaqAccordion } from "@/components/common/faq-accordion";
 import { HeroSearch } from "@/components/home/hero-search";
+import { AnnouncementList } from "@/components/home/announcement-list";
 
 /** DB 参照のためビルド時静的化せずリクエストごとに描画 */
 export const dynamic = "force-dynamic";
@@ -68,11 +70,13 @@ const TESTIMONIALS = [
  * サービスの第一印象を担う各セクションを配置します。
  */
 export default async function HomePage() {
-  const [categories, latestTeachers, favoriteContext] = await Promise.all([
-    getActiveCategories(),
-    getLatestPublishedTeachers(6),
-    getFavoriteButtonContext("/"),
-  ]);
+  const [categories, latestTeachers, favoriteContext, announcements] =
+    await Promise.all([
+      getActiveCategories(),
+      getLatestPublishedTeachers(6),
+      getFavoriteButtonContext("/"),
+      getPublishedAnnouncements(5),
+    ]);
 
   // 人気カテゴリー（先頭10件を表示）
   const popularCategories = categories.slice(0, 10);
@@ -100,7 +104,19 @@ export default async function HomePage() {
         <HeroSearch categories={categories} />
       </section>
 
-      {/* ③ 人気カテゴリー */}
+      {/* ③ 管理者からのお知らせ */}
+      {announcements.length > 0 && (
+        <Section title="管理者からのお知らせ" subtitle="運営からの最新情報">
+          <AnnouncementList items={announcements} />
+          <div className="mt-8 text-center">
+            <Button href="/news" variant="outline">
+              もっと見る
+            </Button>
+          </div>
+        </Section>
+      )}
+
+      {/* ④ 人気カテゴリー */}
       <Section title="人気のカテゴリー" subtitle="学びたいジャンルから探す">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
           {popularCategories.map((category) => (

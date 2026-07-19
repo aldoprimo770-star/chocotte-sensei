@@ -10,6 +10,10 @@ import {
   categoryCreateSchema,
   categoryUpdateSchema,
 } from "@/schemas/category.schema";
+import {
+  announcementCreateSchema,
+  announcementUpdateSchema,
+} from "@/schemas/announcement.schema";
 import type { FormActionResult } from "@/types/action";
 
 /** カテゴリー変更後に一覧・公開ページを再検証する */
@@ -17,6 +21,14 @@ function revalidateCategoryPaths() {
   revalidatePath("/admin/categories");
   revalidatePath("/categories");
   revalidatePath("/teachers");
+  revalidatePath("/admin");
+}
+
+/** お知らせ変更後に管理・公開ページを再検証する */
+function revalidateAnnouncementPaths() {
+  revalidatePath("/admin/announcements");
+  revalidatePath("/");
+  revalidatePath("/news");
   revalidatePath("/admin");
 }
 
@@ -505,5 +517,128 @@ export async function deleteCategoryAction(
     return { success: true };
   } catch {
     return { success: false, error: "カテゴリーの削除に失敗しました。" };
+  }
+}
+
+/** お知らせを新規作成する */
+export async function createAnnouncementAction(input: {
+  title: string;
+  content: string;
+  published?: boolean;
+  displayOrder?: string;
+}): Promise<FormActionResult> {
+  await requireRole("ADMIN");
+
+  const parsed = announcementCreateSchema.safeParse(input);
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path[0];
+      if (typeof key === "string" && !fieldErrors[key]) {
+        fieldErrors[key] = issue.message;
+      }
+    }
+    return {
+      success: false,
+      error: "入力内容をご確認ください。",
+      fieldErrors,
+    };
+  }
+
+  const { title, content, published = false, displayOrder } = parsed.data;
+
+  try {
+    let nextOrder = displayOrder;
+    if (nextOrder === undefined) {
+      // 新しいお知らせは先頭（表示順 0）に出す
+      nextOrder = 0;
+    }
+
+    await getDb().announcement.create({
+      data: {
+        title,
+        content,
+        published,
+        displayOrder: nextOrder,
+      },
+    });
+
+    revalidateAnnouncementPaths();
+    return { success: true };
+  } catch {
+    return { success: false, error: "お知らせの作成に失敗しました。" };
+  }
+}
+
+/** お知らせのタイトル・本文・表示順を更新する */
+export async function updateAnnouncementAction(input: {
+  id: string;
+  title: string;
+  content: string;
+  displayOrder: string;
+}): Promise<FormActionResult> {
+  await requireRole("ADMIN");
+
+  const parsed = announcementUpdateSchema.safeParse(input);
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path[0];
+      if (typeof key === "string" && !fieldErrors[key]) {
+        fieldErrors[key] = issue.message;
+      }
+    }
+    return {
+      success: false,
+      error: "入力内容をご確認ください。",
+      fieldErrors,
+    };
+  }
+
+  const { id, title, content, displayOrder } = parsed.data;
+
+  try {
+    await getDb().announcement.update({
+      where: { id },
+      data: { title, content, displayOrder },
+    });
+    revalidateAnnouncementPaths();
+    return { success: true };
+  } catch {
+    return { success: false, error: "お知らせの更新に失敗しました。" };
+  }
+}
+
+/** お知らせの公開 / 非公開を切り替える */
+export async function setAnnouncementPublishedAction(
+  announcementId: string,
+  published: boolean,
+): Promise<FormActionResult> {
+  await requireRole("ADMIN");
+
+  try {
+    await getDb().announcement.update({
+      where: { id: announcementId },
+      data: { published },
+    });
+    revalidateAnnouncementPaths();
+    return { success: true };
+  } catch {
+    return { success: false, error: "公開状態の更新に失敗しました。" };
+  }
+}
+
+/** お知らせを削除する */
+export async function deleteAnnouncementAction(
+  announcementId: string,
+): Promise<FormActionResult> {
+  await requireRole("ADMIN");
+
+  try {
+    await getDb().announcement.delete({ where: { id: announcementId } });
+    revalidateAnnouncementPaths();
+    return { success: true };
+  } catch {
+    return { success: false, error: "お知らせの削除に失敗しました。" };
   }
 }

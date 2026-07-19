@@ -179,3 +179,25 @@ export async function getAdminCategories() {
     },
   });
 }
+
+/** お知らせ管理一覧の1行分のデータ */
+export type AdminAnnouncementRow = Awaited<
+  ReturnType<typeof getAdminAnnouncements>
+>[number];
+
+/** お知らせ一覧を取得（表示順 → 新しい順） */
+export async function getAdminAnnouncements() {
+  return getDb().announcement.findMany({
+    orderBy: [{ displayOrder: "asc" }, { createdAt: "desc" }],
+    take: ADMIN_LIST_LIMIT,
+    select: {
+      id: true,
+      title: true,
+      content: true,
+      published: true,
+      displayOrder: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+}

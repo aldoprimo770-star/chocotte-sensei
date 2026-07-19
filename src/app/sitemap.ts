@@ -22,6 +22,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE.url}/about`, lastModified: now, priority: 0.5 },
     { url: `${SITE.url}/faq`, lastModified: now, priority: 0.5 },
     { url: `${SITE.url}/contact`, lastModified: now, priority: 0.4 },
+    { url: `${SITE.url}/news`, lastModified: now, priority: 0.5 },
   ];
 
   // 地域ページ（47都道府県）
