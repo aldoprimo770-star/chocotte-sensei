@@ -7,10 +7,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ResetPasswordForm } from "./reset-password-form";
+import { isPasswordResetTokenUsable } from "@/lib/auth/password-reset";
 
 export const metadata: Metadata = {
   title: "新しいパスワードの設定",
 };
+
+// トークンの有効性を毎回 DB で検証するためキャッシュしない
+export const dynamic = "force-dynamic";
 
 /** 新しいパスワード設定ページ */
 export default async function ResetPasswordPage({
@@ -20,13 +24,16 @@ export default async function ResetPasswordPage({
 }) {
   const { token } = await searchParams;
 
-  if (!token?.trim()) {
+  // トークンが無い・使用済み・期限切れの場合は無効メッセージを表示
+  const isValid = token ? await isPasswordResetTokenUsable(token) : false;
+
+  if (!isValid) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>リンクが無効です</CardTitle>
+          <CardTitle>このリンクは無効または期限切れです</CardTitle>
           <CardDescription>
-            パスワード再設定リンクが正しくないか、期限切れの可能性があります。
+            パスワード再設定リンクが正しくないか、すでに使用済み、または期限切れの可能性があります。お手数ですが、もう一度お手続きをやり直してください。
           </CardDescription>
         </CardHeader>
         <p className="text-center text-sm text-muted">
@@ -50,7 +57,7 @@ export default async function ResetPasswordPage({
         </CardDescription>
       </CardHeader>
 
-      <ResetPasswordForm token={token} />
+      <ResetPasswordForm token={token ?? ""} />
     </Card>
   );
 }
