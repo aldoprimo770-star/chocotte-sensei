@@ -37,6 +37,27 @@ export async function sendEmail(
     };
   }
 
+  // 開発用: 送信先を強制的に固定アドレスへ振り替える。
+  // Resend のテストドメイン（resend.dev）は自分の登録アドレス宛しか送れないため、
+  // EMAIL_REDIRECT_TO を設定すると、どの宛先でも自分の受信箱でテストできる。
+  const redirectTo = process.env.EMAIL_REDIRECT_TO?.trim();
+  const actualTo = redirectTo || params.to;
+  const subject = redirectTo
+    ? `[to: ${params.to}] ${params.subject}`
+    : params.subject;
+  const redirectNoticeText = redirectTo
+    ? `※開発用リダイレクト: 本来の宛先は ${params.to} です。\n\n`
+    : "";
+  const redirectNoticeHtml = redirectTo
+    ? `<p style="font-size:12px;color:#999;">※開発用リダイレクト: 本来の宛先は ${params.to} です。</p>`
+    : "";
+
+  if (redirectTo) {
+    console.info(
+      `[email] dev redirect enabled. original=${params.to} -> ${redirectTo}`,
+    );
+  }
+
   try {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -46,10 +67,10 @@ export async function sendEmail(
       },
       body: JSON.stringify({
         from,
-        to: params.to,
-        subject: params.subject,
-        text: params.text,
-        html: params.html,
+        to: actualTo,
+        subject,
+        text: redirectNoticeText + params.text,
+        html: redirectNoticeHtml + params.html,
       }),
     });
 
