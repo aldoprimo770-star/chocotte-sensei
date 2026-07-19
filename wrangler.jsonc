@@ -20,10 +20,10 @@
 		}
 	],
 	"vars": {
-		"R2_PUBLIC_URL": "https://pub-4c9f6da2da5842389e4fe7dc17303edd.r2.dev"
-		// Turnstile:
-		// NEXT_PUBLIC_TURNSTILE_SITE_KEY … Cloudflare Dashboard の Variable（実行時）に設定
-		// TURNSTILE_SECRET_KEY           … Cloudflare Dashboard の Secret（暗号化）に設定
-		// （Site Key は公開値だが、ダッシュボードで管理する想定のためここには置かない）
+		"R2_PUBLIC_URL": "https://pub-4c9f6da2da5842389e4fe7dc17303edd.r2.dev",
+		// Site Key は公開値。ダッシュボードだけの Variable は CI 再デプロイで消えるため、
+		// wrangler.jsonc に置いて毎回のデプロイで維持する。
+		// TURNSTILE_SECRET_KEY は Secret（暗号化）のままダッシュボードで管理する。
+		"NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAD5DpjoUI0WxogPJ"
 	}
 }
