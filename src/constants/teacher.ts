@@ -80,7 +80,7 @@ export const TEACHING_METHOD_OPTIONS: ReadonlyArray<{
 }> = [
   { value: "IN_PERSON", label: "対面" },
   { value: "ONLINE", label: "オンライン" },
-  { value: "BOTH", label: "両方" },
+  { value: "BOTH", label: "対面・オンライン両方" },
 ];
 
 /** 検索用：講師歴（年以上）の選択肢 */
