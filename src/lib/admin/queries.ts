@@ -152,3 +152,30 @@ export async function getAdminInquiries() {
     },
   });
 }
+
+/** カテゴリー管理一覧の1行分のデータ */
+export type AdminCategoryRow = Awaited<
+  ReturnType<typeof getAdminCategories>
+>[number];
+
+/**
+ * カテゴリー一覧を取得（表示順 → 名前順）。
+ * 紐づく先生・生徒数も返し、削除可否の判定に使う。
+ */
+export async function getAdminCategories() {
+  return getDb().category.findMany({
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      sortOrder: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: {
+        select: { teachers: true, students: true },
+      },
+    },
+  });
+}

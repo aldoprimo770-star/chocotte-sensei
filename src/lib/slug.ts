@@ -23,3 +23,21 @@ function randomToken(length: number): string {
 export function generateTeacherSlug(): string {
   return `teacher-${randomToken(8)}`;
 }
+
+/**
+ * カテゴリー用 slug を生成する。
+ * 英数字の名前ならそれを正規化し、それ以外（日本語など）はランダム ID を使う。
+ */
+export function generateCategorySlug(name: string): string {
+  const fromName = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+
+  if (fromName.length >= 2) {
+    return fromName;
+  }
+  return `cat-${randomToken(8)}`;
+}

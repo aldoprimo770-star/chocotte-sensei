@@ -5,6 +5,7 @@ export const ADMIN_NAV_LINKS: ReadonlyArray<{ href: string; label: string }> = [
   { href: "/admin", label: "ダッシュボード" },
   { href: "/admin/teachers", label: "先生管理" },
   { href: "/admin/students", label: "生徒管理" },
+  { href: "/admin/categories", label: "カテゴリー管理" },
   { href: "/admin/verifications", label: "本人確認" },
   { href: "/admin/reviews", label: "レビュー" },
   { href: "/admin/purchases", label: "購入管理" },
