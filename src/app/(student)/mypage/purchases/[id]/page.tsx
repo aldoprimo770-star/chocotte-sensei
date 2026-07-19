@@ -72,6 +72,8 @@ export default async function PurchaseDetailPage({
           displayName={teacher.displayName}
           email={teacher.user.email}
           phone={teacher.phone}
+          lineId={teacher.lineId}
+          youtubeUrl={teacher.youtubeUrl}
           websiteUrl={teacher.websiteUrl}
           snsUrl={teacher.snsUrl}
         />

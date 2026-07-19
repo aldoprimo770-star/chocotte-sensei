@@ -1,26 +1,53 @@
+import type { SkillLevel, TargetAge } from "@prisma/client";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { VerifiedBadge } from "@/components/teacher/verified-badge";
 import { RatingSummary } from "@/components/review/star-rating";
 import { getSkillLevelLabel, getTargetAgeLabel } from "@/constants/teacher";
 import { extractYouTubeId } from "@/lib/validation";
 import { formatPriceRange } from "@/lib/teacher/format";
-import type { TeacherProfileWithRelations } from "@/lib/teacher/profile";
+import type { TeacherContactInfo } from "@/lib/teacher/profile";
+
+/**
+ * プロフィール表示に必要な「無料公開」項目のみを表す型。
+ * 公開ページ用（TeacherPublicProfile）と先生本人用（TeacherProfileWithRelations）の
+ * どちらからも渡せるよう、必要な項目だけを緩く定義している。
+ */
+export interface ProfileViewData {
+  displayName: string;
+  catchphrase: string | null;
+  bio: string | null;
+  lessonContent: string | null;
+  profileImageUrl: string | null;
+  priceMin: number | null;
+  priceMax: number | null;
+  targetAges: TargetAge[];
+  skillLevels: SkillLevel[];
+  isOnline: boolean;
+  isAcceptingStudents: boolean;
+  isVerified: boolean;
+  ratingAverage: number;
+  reviewCount: number;
+  categories: { category: { name: string } }[];
+  areas: { prefecture: string }[];
+}
 
 /**
  * 先生プロフィールの表示コンポーネント（表示専用）
  *
- * プレビュー画面で使用し、将来は公開ページ(/teachers/[slug])でも
- * 再利用できるよう、表示ロジックをここに集約します。
+ * 無料公開項目は常に表示します。
+ * 連絡先系（YouTube・ホームページ・SNS・電話・メール・LINE）は
+ * canViewContact が true のとき（先生本人 / 管理者 / 購入済み生徒）のみ
+ * contact を渡して表示し、それ以外は「🔒 連絡先購入後に表示されます」を出します。
  */
 export function TeacherProfileView({
   profile,
+  canViewContact = false,
+  contact = null,
 }: {
-  profile: TeacherProfileWithRelations;
+  profile: ProfileViewData;
+  canViewContact?: boolean;
+  contact?: TeacherContactInfo | null;
 }) {
-  const youtubeId = profile.youtubeUrl
-    ? extractYouTubeId(profile.youtubeUrl)
-    : null;
-
   return (
     <div className="space-y-6">
       {/* ヘッダー：写真・名前・キャッチコピー */}
@@ -124,47 +151,112 @@ export function TeacherProfileView({
         </Card>
       )}
 
-      {/* YouTube 動画 */}
-      {youtubeId && (
-        <Card>
-          <CardHeader>
-            <CardTitle>紹介動画</CardTitle>
-          </CardHeader>
-          <div className="aspect-video overflow-hidden rounded-xl">
-            <iframe
-              className="h-full w-full"
-              src={`https://www.youtube.com/embed/${youtubeId}`}
-              title="紹介動画"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
-        </Card>
-      )}
-
-      {/* 外部リンク */}
-      {(profile.websiteUrl || profile.snsUrl) && (
-        <Card>
-          <CardHeader>
-            <CardTitle>リンク</CardTitle>
-          </CardHeader>
-          <ul className="space-y-2 text-sm">
-            {profile.websiteUrl && (
-              <li>
-                <ExternalLink href={profile.websiteUrl}>
-                  ホームページ
-                </ExternalLink>
-              </li>
-            )}
-            {profile.snsUrl && (
-              <li>
-                <ExternalLink href={profile.snsUrl}>SNS</ExternalLink>
-              </li>
-            )}
-          </ul>
-        </Card>
-      )}
+      {/* 連絡先・外部リンク（連絡先購入後のみ公開） */}
+      <ContactSection canViewContact={canViewContact} contact={contact} />
     </div>
+  );
+}
+
+/**
+ * 連絡先・外部リンクのセクション。
+ * 未購入の閲覧者にはロック表示のみを返し、値は一切描画しない。
+ */
+function ContactSection({
+  canViewContact,
+  contact,
+}: {
+  canViewContact: boolean;
+  contact: TeacherContactInfo | null;
+}) {
+  if (!canViewContact || !contact) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>連絡先・外部リンク</CardTitle>
+        </CardHeader>
+        <p className="rounded-xl bg-surface px-4 py-3 text-sm text-muted">
+          🔒 連絡先購入後に表示されます
+        </p>
+      </Card>
+    );
+  }
+
+  const youtubeId = contact.youtubeUrl
+    ? extractYouTubeId(contact.youtubeUrl)
+    : null;
+
+  const hasAny =
+    youtubeId ||
+    contact.websiteUrl ||
+    contact.snsUrl ||
+    contact.phone ||
+    contact.email ||
+    contact.lineId;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>連絡先・外部リンク</CardTitle>
+      </CardHeader>
+
+      {!hasAny ? (
+        <p className="text-sm text-muted">連絡先は登録されていません。</p>
+      ) : (
+        <div className="space-y-4">
+          {youtubeId && (
+            <div className="aspect-video overflow-hidden rounded-xl">
+              <iframe
+                className="h-full w-full"
+                src={`https://www.youtube.com/embed/${youtubeId}`}
+                title="紹介動画"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          )}
+
+          <dl className="space-y-4 text-sm">
+            {contact.email && (
+              <InfoRow label="メール">
+                <a
+                  href={`mailto:${contact.email}`}
+                  className="break-all text-primary hover:underline"
+                >
+                  {contact.email}
+                </a>
+              </InfoRow>
+            )}
+            {contact.phone && (
+              <InfoRow label="電話番号">
+                <a
+                  href={`tel:${contact.phone}`}
+                  className="text-primary hover:underline"
+                >
+                  {contact.phone}
+                </a>
+              </InfoRow>
+            )}
+            {contact.lineId && (
+              <InfoRow label="LINE ID">{contact.lineId}</InfoRow>
+            )}
+            {contact.websiteUrl && (
+              <InfoRow label="ホームページ">
+                <ExternalLink href={contact.websiteUrl}>
+                  {contact.websiteUrl}
+                </ExternalLink>
+              </InfoRow>
+            )}
+            {contact.snsUrl && (
+              <InfoRow label="SNS">
+                <ExternalLink href={contact.snsUrl}>
+                  {contact.snsUrl}
+                </ExternalLink>
+              </InfoRow>
+            )}
+          </dl>
+        </div>
+      )}
+    </Card>
   );
 }
 

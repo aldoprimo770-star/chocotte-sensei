@@ -39,7 +39,18 @@ export default async function ProfilePreviewPage() {
         </Link>
       </div>
 
-      <TeacherProfileView profile={profile} />
+      <TeacherProfileView
+        profile={profile}
+        canViewContact
+        contact={{
+          youtubeUrl: profile.youtubeUrl,
+          websiteUrl: profile.websiteUrl,
+          snsUrl: profile.snsUrl,
+          phone: profile.phone,
+          lineId: profile.lineId,
+          email: session.user.email ?? null,
+        }}
+      />
     </div>
   );
 }

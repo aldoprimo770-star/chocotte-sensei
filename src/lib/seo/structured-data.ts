@@ -1,6 +1,6 @@
 import { SITE } from "@/constants/site";
 import type { PublicReviewItem } from "@/components/review/review-list";
-import type { TeacherProfileWithRelations } from "@/lib/teacher/profile";
+import type { TeacherPublicProfile } from "@/lib/teacher/profile";
 
 /** Organization スキーマ */
 export function buildOrganizationJsonLd() {
@@ -52,7 +52,7 @@ export function buildBreadcrumbJsonLd(
 }
 
 /** 先生プロフィール Person スキーマ */
-export function buildPersonJsonLd(teacher: TeacherProfileWithRelations) {
+export function buildPersonJsonLd(teacher: TeacherPublicProfile) {
   const categories = teacher.categories.map((c) => c.category.name).join("、");
   const description =
     teacher.catchphrase ||
@@ -87,7 +87,7 @@ export function buildPersonJsonLd(teacher: TeacherProfileWithRelations) {
 
 /** 個別 Review スキーマ（承認済みレビュー） */
 export function buildReviewJsonLd(
-  teacher: TeacherProfileWithRelations,
+  teacher: TeacherPublicProfile,
   reviews: PublicReviewItem[],
 ) {
   return reviews.slice(0, 5).map((review) => ({

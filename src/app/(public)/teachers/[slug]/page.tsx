@@ -3,7 +3,11 @@ import type { Session } from "next-auth";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
-import { getPublishedTeacherBySlug } from "@/lib/teacher/profile";
+import {
+  getPublishedTeacherBySlug,
+  getTeacherContactInfo,
+  type TeacherContactInfo,
+} from "@/lib/teacher/profile";
 import { getActivePurchase } from "@/lib/purchase/purchase";
 import {
   getApprovedReviews,
@@ -108,6 +112,17 @@ export default async function TeacherPublicProfilePage({
       resolveContactState(session, teacher.id),
     ]);
 
+  // 連絡先の閲覧可否（先生本人 / 管理者 / 購入済み生徒のみ true）
+  const canViewContact =
+    session?.user?.id === teacher.userId ||
+    session?.user?.role === "ADMIN" ||
+    contactState.kind === "owned";
+
+  // 認可された場合のみ連絡先を取得（未認可なら HTML/レスポンスに一切含めない）
+  const contact: TeacherContactInfo | null = canViewContact
+    ? await getTeacherContactInfo(teacher.id)
+    : null;
+
   const structuredData = [
     buildPersonJsonLd(teacher),
     buildBreadcrumbJsonLd([
@@ -156,7 +171,11 @@ export default async function TeacherPublicProfilePage({
         </div>
       )}
 
-      <TeacherProfileView profile={teacher} />
+      <TeacherProfileView
+        profile={teacher}
+        canViewContact={canViewContact}
+        contact={contact}
+      />
 
       {/* 連絡先購入の導線 */}
       <div className="mt-6">

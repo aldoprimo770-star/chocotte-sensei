@@ -67,6 +67,8 @@ export async function getPurchaseForStudent(
           profileImageUrl: true,
           // 連絡先（開示は呼び出し側で status を確認してから行う）
           phone: true,
+          lineId: true,
+          youtubeUrl: true,
           websiteUrl: true,
           snsUrl: true,
           user: { select: { email: true } },

@@ -4,18 +4,22 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
  * 購入済みの連絡先表示（サーバーコンポーネント・表示専用）
  *
  * 呼び出し側で「購入が COMPLETED かつ本人」であることを確認した上で
- * レンダリングしてください。LINE ID は仕様により表示しません。
+ * レンダリングしてください。
  */
 export function ContactDetails({
   displayName,
   email,
   phone,
+  lineId,
+  youtubeUrl,
   websiteUrl,
   snsUrl,
 }: {
   displayName: string;
   email: string;
   phone: string | null;
+  lineId: string | null;
+  youtubeUrl: string | null;
   websiteUrl: string | null;
   snsUrl: string | null;
 }) {
@@ -36,6 +40,12 @@ export function ContactDetails({
             <a href={`tel:${phone}`} className="text-primary hover:underline">
               {phone}
             </a>
+          </Row>
+        )}
+        {lineId && <Row label="LINE ID">{lineId}</Row>}
+        {youtubeUrl && (
+          <Row label="YouTube">
+            <ExternalLink href={youtubeUrl}>{youtubeUrl}</ExternalLink>
           </Row>
         )}
         {websiteUrl && (
