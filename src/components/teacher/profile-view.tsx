@@ -1,8 +1,21 @@
-import type { SkillLevel, TargetAge } from "@prisma/client";
+import type {
+  AgeRange,
+  Gender,
+  SkillLevel,
+  TargetAge,
+  TeachingMethod,
+} from "@prisma/client";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { VerifiedBadge } from "@/components/teacher/verified-badge";
 import { RatingSummary } from "@/components/review/star-rating";
-import { getSkillLevelLabel, getTargetAgeLabel } from "@/constants/teacher";
+import {
+  getAgeRangeLabel,
+  getGenderLabel,
+  getSkillLevelLabel,
+  getTargetAgeLabel,
+  getTeachingMethodLabel,
+  teachingMethodToIsOnline,
+} from "@/constants/teacher";
 import { extractYouTubeId } from "@/lib/validation";
 import { formatPriceRange } from "@/lib/teacher/format";
 import type { TeacherContactInfo } from "@/lib/teacher/profile";
@@ -22,13 +35,25 @@ export interface ProfileViewData {
   priceMax: number | null;
   targetAges: TargetAge[];
   skillLevels: SkillLevel[];
+  gender?: Gender | null;
+  ageRange?: AgeRange | null;
+  teachingYears?: number | null;
+  teachingMethod?: TeachingMethod | null;
   isOnline: boolean;
   isAcceptingStudents: boolean;
   isVerified: boolean;
   ratingAverage: number;
   reviewCount: number;
   categories: { category: { name: string } }[];
-  areas: { prefecture: string }[];
+  areas: { prefecture: string; city?: string | null }[];
+}
+
+/** 地域ラベル（市町村があれば「長野県 長野市」） */
+function formatAreaLabel(area: {
+  prefecture: string;
+  city?: string | null;
+}): string {
+  return area.city ? `${area.prefecture} ${area.city}` : area.prefecture;
 }
 
 /**
@@ -84,7 +109,11 @@ export function TeacherProfileView({
         {/* バッジ */}
         <div className="mt-4 flex flex-wrap justify-center gap-2">
           {profile.isVerified && <VerifiedBadge />}
-          {profile.isOnline && <Badge color="accent">オンライン対応</Badge>}
+          {(profile.teachingMethod
+            ? teachingMethodToIsOnline(profile.teachingMethod)
+            : profile.isOnline) && (
+            <Badge color="accent">オンライン対応</Badge>
+          )}
           {profile.isAcceptingStudents ? (
             <Badge color="primary">新規受付中</Badge>
           ) : (
@@ -92,6 +121,32 @@ export function TeacherProfileView({
           )}
         </div>
       </Card>
+
+      {/* 基本情報 */}
+      {(profile.gender ||
+        profile.ageRange ||
+        profile.teachingYears != null) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>基本情報</CardTitle>
+          </CardHeader>
+          <dl className="space-y-4 text-sm">
+            {profile.gender && (
+              <InfoRow label="性別">
+                {getGenderLabel(profile.gender)}
+              </InfoRow>
+            )}
+            {profile.ageRange && (
+              <InfoRow label="年代">
+                {getAgeRangeLabel(profile.ageRange)}
+              </InfoRow>
+            )}
+            {profile.teachingYears != null && (
+              <InfoRow label="講師歴">{profile.teachingYears}年</InfoRow>
+            )}
+          </dl>
+        </Card>
+      )}
 
       {/* カテゴリー・地域・価格などの詳細 */}
       <Card>
@@ -104,17 +159,25 @@ export function TeacherProfileView({
               ? profile.categories.map((c) => c.category.name).join("、")
               : "未設定"}
           </InfoRow>
+          <InfoRow label="指導方法">
+            {profile.teachingMethod
+              ? getTeachingMethodLabel(profile.teachingMethod)
+              : profile.isOnline
+                ? "オンライン"
+                : "未設定"}
+          </InfoRow>
           <InfoRow label="対応地域">
             {profile.areas.length > 0
-              ? profile.areas.map((a) => a.prefecture).join("、")
-              : profile.isOnline
+              ? profile.areas.map(formatAreaLabel).join("、")
+              : profile.teachingMethod === "ONLINE" ||
+                  (!profile.teachingMethod && profile.isOnline)
                 ? "オンラインのみ"
                 : "未設定"}
           </InfoRow>
           <InfoRow label="参考価格">
             {formatPriceRange(profile.priceMin, profile.priceMax)}
           </InfoRow>
-          <InfoRow label="対象年齢">
+          <InfoRow label="指導対象">
             {profile.targetAges.length > 0
               ? profile.targetAges.map(getTargetAgeLabel).join("、")
               : "未設定"}
@@ -270,7 +333,7 @@ function InfoRow({
 }) {
   return (
     <div className="flex gap-4">
-      <dt className="w-24 shrink-0 font-medium text-muted">{label}</dt>
+      <dt className="w-28 shrink-0 font-medium text-muted">{label}</dt>
       <dd className="flex-1 text-foreground">{children}</dd>
     </div>
   );

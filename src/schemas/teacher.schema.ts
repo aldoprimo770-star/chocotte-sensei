@@ -1,6 +1,15 @@
 import { z } from "zod";
-import { SkillLevel, TargetAge } from "@prisma/client";
+import {
+  AgeRange,
+  Gender,
+  SkillLevel,
+  TargetAge,
+  TeachingMethod,
+} from "@prisma/client";
 import { isHttpUrl, isYouTubeUrl } from "@/lib/validation";
+import { PREFECTURES } from "@/constants/prefectures";
+import { isCityInPrefecture } from "@/constants/cities-by-prefecture";
+import { teachingMethodToIsOnline } from "@/constants/teacher";
 
 /**
  * 先生プロフィール入力の Zod スキーマ
@@ -9,10 +18,6 @@ import { isHttpUrl, isYouTubeUrl } from "@/lib/validation";
  * 1) baseSchema … 形式チェック（文字数・URL・数値など。常に適用）
  * 2) publishSchema … 公開に必要な必須項目チェック
  * の2段構えにしています。
- *
- * フォーム(React Hook Form)からは全項目を文字列/配列で受け取り、
- * transform で「空文字→undefined」「価格文字列→数値」に正規化します。
- * これにより入力型(z.input)はシンプルなまま、出力型は型安全になります。
  */
 
 /** 任意テキスト（空欄OK・最大文字数チェック） */
@@ -44,9 +49,33 @@ const optionalPrice = z
   .transform((v) => (v === "" ? undefined : Number(v)))
   .pipe(z.number().int().min(0).max(1_000_000).optional());
 
+/** 任意の講師歴（年） */
+const optionalTeachingYears = z
+  .string()
+  .trim()
+  .refine((v) => v === "" || /^\d+$/.test(v), {
+    message: "講師歴は半角数字で入力してください",
+  })
+  .transform((v) => (v === "" ? undefined : Number(v)))
+  .pipe(z.number().int().min(0).max(80).optional());
+
+/** 対応地域1件（都道府県 + 任意の市町村）。都道府県未選択の行は後段で除外 */
+const areaRowSchema = z.object({
+  prefecture: z.string().trim(),
+  city: z
+    .string()
+    .trim()
+    .transform((v) => (v === "" ? "" : v)),
+});
+
+/** 空文字→undefined に変換する任意 enum */
+const optionalEnum = <T extends z.ZodTypeAny>(schema: T) =>
+  z
+    .union([schema, z.literal("")])
+    .transform((v) => (v === "" ? undefined : v));
+
 /** フォーム共通の base スキーマ（形式チェック） */
 export const teacherProfileBaseSchema = z.object({
-  // 表示名は登録時に必ず存在するため下書きでも必須
   displayName: z
     .string()
     .trim()
@@ -63,7 +92,6 @@ export const teacherProfileBaseSchema = z.object({
     "レッスン内容は2000文字以内で入力してください",
   ),
 
-  // R2 アップロード後に自動設定（手入力 URL は廃止）
   profileImageUrl: z
     .string()
     .trim()
@@ -79,7 +107,6 @@ export const teacherProfileBaseSchema = z.object({
   websiteUrl: optionalUrl("正しいURL形式で入力してください"),
   snsUrl: optionalUrl("正しいURL形式で入力してください"),
 
-  // 連絡先情報（購入した生徒にのみ開示される）
   phone: z
     .string()
     .trim()
@@ -90,24 +117,32 @@ export const teacherProfileBaseSchema = z.object({
     .transform((v) => (v === "" ? undefined : v)),
   lineId: optionalText(50, "LINE IDは50文字以内で入力してください"),
 
+  // 基本情報（任意）
+  gender: optionalEnum(z.nativeEnum(Gender)),
+  ageRange: optionalEnum(z.nativeEnum(AgeRange)),
+  teachingYears: optionalTeachingYears,
+  teachingMethod: optionalEnum(z.nativeEnum(TeachingMethod)),
+
   priceMin: optionalPrice,
   priceMax: optionalPrice,
 
-  // 複数選択（enum は Prisma の値に一致することを保証）
   targetAges: z.array(z.nativeEnum(TargetAge)).default([]),
   skillLevels: z.array(z.nativeEnum(SkillLevel)).default([]),
   categoryIds: z.array(z.string()).default([]),
-  prefectures: z.array(z.string()).default([]),
+  /** 対応地域（都道府県 + 市町村）。空の市町村は都道府県全域を意味する */
+  areas: z
+    .array(areaRowSchema)
+    .default([])
+    .transform((rows) => rows.filter((a) => a.prefecture !== "")),
 
-  isOnline: z.boolean().default(false),
   isAcceptingStudents: z.boolean().default(true),
 });
 
-/** 正規化後のデータ型（priceは数値、任意項目はstring|undefined） */
+/** 正規化後のデータ型 */
 type NormalizedProfile = z.output<typeof teacherProfileBaseSchema>;
 
-/** 価格の下限・上限が逆転していないかの共通チェック */
-function checkPriceRange(
+/** 価格レンジ + 地域の妥当性 */
+function checkCommonRules(
   data: NormalizedProfile,
   ctx: z.RefinementCtx,
 ): void {
@@ -122,16 +157,34 @@ function checkPriceRange(
       path: ["priceMax"],
     });
   }
+
+  data.areas.forEach((area, index) => {
+    if (!(PREFECTURES as readonly string[]).includes(area.prefecture)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "都道府県が不正です",
+        path: ["areas", index, "prefecture"],
+      });
+      return;
+    }
+    if (area.city && !isCityInPrefecture(area.prefecture, area.city)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "市町村が都道府県と一致しません",
+        path: ["areas", index, "city"],
+      });
+    }
+  });
 }
 
-/** 下書き保存用スキーマ（形式チェック + 価格レンジのみ） */
+/** 下書き保存用スキーマ（形式チェック + 共通ルール） */
 export const teacherProfileDraftSchema =
-  teacherProfileBaseSchema.superRefine(checkPriceRange);
+  teacherProfileBaseSchema.superRefine(checkCommonRules);
 
 /** 公開用スキーマ（必須項目を追加チェック） */
 export const teacherProfilePublishSchema = teacherProfileBaseSchema.superRefine(
   (data, ctx) => {
-    checkPriceRange(data, ctx);
+    checkCommonRules(data, ctx);
 
     const requireText = (
       value: string | undefined,
@@ -159,11 +212,21 @@ export const teacherProfilePublishSchema = teacherProfileBaseSchema.superRefine(
         path: ["categoryIds"],
       });
     }
-    if (data.prefectures.length === 0 && !data.isOnline) {
+
+    const onlineCapable = teachingMethodToIsOnline(data.teachingMethod);
+    if (data.areas.length === 0 && !onlineCapable) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "対応地域を選択するか、オンライン対応を有効にしてください",
-        path: ["prefectures"],
+        message:
+          "対応地域を選択するか、指導方法でオンライン（または両方）を選んでください",
+        path: ["areas"],
+      });
+    }
+    if (!data.teachingMethod) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "指導方法を選択してください",
+        path: ["teachingMethod"],
       });
     }
     if (data.priceMin === undefined) {
@@ -176,7 +239,7 @@ export const teacherProfilePublishSchema = teacherProfileBaseSchema.superRefine(
     if (data.targetAges.length === 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "対象年齢を1つ以上選択してください",
+        message: "指導対象を1つ以上選択してください",
         path: ["targetAges"],
       });
     }

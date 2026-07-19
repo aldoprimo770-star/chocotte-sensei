@@ -41,15 +41,40 @@ enum SkillLevel {
   ADVANCED // 上級
 }
 
-/// 対象年齢層
+/// 対象年齢層（指導対象）
 enum TargetAge {
-  PRESCHOOL // 未就学児
+  PRESCHOOL // 幼児・未就学児
   ELEMENTARY // 小学生
   JUNIOR_HIGH // 中学生
   HIGH_SCHOOL // 高校生
   UNIVERSITY // 大学生・専門学生
   ADULT // 社会人・一般
   SENIOR // シニア
+}
+
+/// 先生の性別（任意）
+enum Gender {
+  MALE // 男性
+  FEMALE // 女性
+  OTHER // その他
+  NO_ANSWER // 回答しない
+}
+
+/// 先生の年代（任意・プライバシーに配慮して年代で保持）
+enum AgeRange {
+  TEENS // 10代
+  TWENTIES // 20代
+  THIRTIES // 30代
+  FORTIES // 40代
+  FIFTIES // 50代
+  SIXTIES_PLUS // 60代以上
+}
+
+/// 指導方法
+enum TeachingMethod {
+  IN_PERSON // 対面
+  ONLINE // オンライン
+  BOTH // 両方
 }
 
 /// レビューの審査ステータス
@@ -172,9 +197,15 @@ model TeacherProfile {
   lineId              String?       @map("line_id") // LINE ID（任意・保存のみ／画面には表示しない）
   priceMin            Int?          @map("price_min") // 参考価格（下限・円）
   priceMax            Int?          @map("price_max") // 参考価格（上限・円）
-  targetAges          TargetAge[]   @map("target_ages") // 対象年齢層（複数可）
+  // 基本情報（任意・既存データは null のまま互換）
+  gender              Gender? // 性別
+  ageRange            AgeRange?     @map("age_range") // 年代
+  teachingYears       Int?          @map("teaching_years") // 講師歴（年）
+  // 指導方法（任意）。既存の isOnline は検索互換のため同期して保持する
+  teachingMethod      TeachingMethod? @map("teaching_method")
+  targetAges          TargetAge[]   @map("target_ages") // 指導対象（複数可）
   skillLevels         SkillLevel[]  @map("skill_levels") // 対応レベル（複数可）
-  isOnline            Boolean       @default(false) @map("is_online") // オンライン対応
+  isOnline            Boolean       @default(false) @map("is_online") // オンライン対応（互換用）
   hasTrial            Boolean       @default(false) @map("has_trial") // 初回体験あり
   // 新規受付ON/OFF（生徒の受け入れ可否）
   isAcceptingStudents Boolean       @default(true) @map("is_accepting_students")
@@ -205,6 +236,10 @@ model TeacherProfile {
   @@index([isPublic, isAcceptingStudents])
   @@index([status, isPublic])
   @@index([isOnline]) // オンライン対応での絞り込み
+  @@index([teachingMethod])
+  @@index([gender])
+  @@index([ageRange])
+  @@index([teachingYears])
   @@index([priceMin]) // 参考価格（下限）での範囲検索・並び替え
   @@map("teacher_profiles")
 }
@@ -220,6 +255,7 @@ model TeacherArea {
   teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
   @@index([prefecture])
+  @@index([prefecture, city])
   @@map("teacher_areas")
 }
 

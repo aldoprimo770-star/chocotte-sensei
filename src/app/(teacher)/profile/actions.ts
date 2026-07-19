@@ -9,6 +9,7 @@ import {
   type TeacherProfileFormInput,
 } from "@/schemas/teacher.schema";
 import { calculateProfileCompletion } from "@/lib/teacher/profile-completion";
+import { teachingMethodToIsOnline } from "@/constants/teacher";
 import type { FormActionResult } from "@/types/action";
 
 /**
@@ -70,6 +71,9 @@ export async function saveTeacherProfileAction(
 
   const data = parsed.data;
 
+  const isOnline = teachingMethodToIsOnline(data.teachingMethod);
+  const validAreas = data.areas.filter((a) => a.prefecture);
+
   // 完成率を計算
   const profileCompletion = calculateProfileCompletion({
     profileImageUrl: data.profileImageUrl,
@@ -77,16 +81,16 @@ export async function saveTeacherProfileAction(
     bio: data.bio,
     lessonContent: data.lessonContent,
     priceMin: data.priceMin,
-    isOnline: data.isOnline,
+    isOnline,
     categoryCount: data.categoryIds.length,
-    areaCount: data.prefectures.length,
+    areaCount: validAreas.length,
     targetAgeCount: data.targetAges.length,
     skillLevelCount: data.skillLevels.length,
   });
 
   // プロフィール本体 + カテゴリー + 地域をまとめて更新（トランザクション）
-  await getDb().$transaction([
-    getDb().teacherProfile.update({
+  await getDb().$transaction(async (tx) => {
+    await tx.teacherProfile.update({
       where: { id: profile.id },
       data: {
         displayName: data.displayName,
@@ -99,35 +103,47 @@ export async function saveTeacherProfileAction(
         snsUrl: data.snsUrl ?? null,
         phone: data.phone ?? null,
         lineId: data.lineId ?? null,
+        gender: data.gender ?? null,
+        ageRange: data.ageRange ?? null,
+        teachingYears: data.teachingYears ?? null,
+        teachingMethod: data.teachingMethod ?? null,
         priceMin: data.priceMin ?? null,
         priceMax: data.priceMax ?? null,
         targetAges: data.targetAges,
         skillLevels: data.skillLevels,
-        isOnline: data.isOnline,
+        // 検索互換のため指導方法から同期
+        isOnline,
         isAcceptingStudents: data.isAcceptingStudents,
         // 公開時のみ状態を更新（下書きは非公開のまま）
         isPublic: mode === "publish",
         status: mode === "publish" ? "APPROVED" : "DRAFT",
         profileCompletion,
       },
-    }),
+    });
+
     // カテゴリーは一旦削除して作り直す（差分管理より単純で安全）
-    getDb().teacherCategory.deleteMany({ where: { teacherId: profile.id } }),
-    getDb().teacherCategory.createMany({
-      data: data.categoryIds.map((categoryId) => ({
-        teacherId: profile.id,
-        categoryId,
-      })),
-    }),
-    // 地域も同様に作り直す
-    getDb().teacherArea.deleteMany({ where: { teacherId: profile.id } }),
-    getDb().teacherArea.createMany({
-      data: data.prefectures.map((prefecture) => ({
-        teacherId: profile.id,
-        prefecture,
-      })),
-    }),
-  ]);
+    await tx.teacherCategory.deleteMany({ where: { teacherId: profile.id } });
+    if (data.categoryIds.length > 0) {
+      await tx.teacherCategory.createMany({
+        data: data.categoryIds.map((categoryId) => ({
+          teacherId: profile.id,
+          categoryId,
+        })),
+      });
+    }
+
+    // 地域も同様に作り直す（市町村は任意）
+    await tx.teacherArea.deleteMany({ where: { teacherId: profile.id } });
+    if (validAreas.length > 0) {
+      await tx.teacherArea.createMany({
+        data: validAreas.map((area) => ({
+          teacherId: profile.id,
+          prefecture: area.prefecture,
+          city: area.city || null,
+        })),
+      });
+    }
+  });
 
   // 関連ページのキャッシュを更新
   revalidatePath("/dashboard");

@@ -16,18 +16,23 @@ import {
 } from "@/app/(teacher)/profile/actions";
 import { calculateProfileCompletion } from "@/lib/teacher/profile-completion";
 import {
+  AGE_RANGE_OPTIONS,
+  GENDER_OPTIONS,
   SKILL_LEVEL_OPTIONS,
   TARGET_AGE_OPTIONS,
+  TEACHING_METHOD_OPTIONS,
+  teachingMethodToIsOnline,
 } from "@/constants/teacher";
-import { PREFECTURES } from "@/constants/prefectures";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FormField, Input, InputErrorMessage } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { CompletionBar } from "@/components/teacher/completion-bar";
 import { ProfileImageUpload } from "@/components/teacher/profile-image-upload";
+import { AreaFieldsEditor } from "@/components/teacher/area-fields-editor";
 
 interface ProfileFormProps {
   /** フォーム初期値 */
@@ -68,6 +73,14 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
 
   // 入力状況に応じて完成率をリアルタイム計算
   const values = watch();
+  const method =
+    values.teachingMethod === "IN_PERSON" ||
+    values.teachingMethod === "ONLINE" ||
+    values.teachingMethod === "BOTH"
+      ? values.teachingMethod
+      : undefined;
+  const filledAreas =
+    values.areas?.filter((a) => a.prefecture?.trim()) ?? [];
   const livePercent = calculateProfileCompletion({
     profileImageUrl: values.profileImageUrl,
     catchphrase: values.catchphrase,
@@ -77,9 +90,9 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
       typeof values.priceMin === "string" && values.priceMin.trim() !== ""
         ? Number(values.priceMin)
         : null,
-    isOnline: !!values.isOnline,
+    isOnline: teachingMethodToIsOnline(method),
     categoryCount: values.categoryIds?.length ?? 0,
-    areaCount: values.prefectures?.length ?? 0,
+    areaCount: filledAreas.length,
     targetAgeCount: values.targetAges?.length ?? 0,
     skillLevelCount: values.skillLevels?.length ?? 0,
   });
@@ -183,6 +196,47 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
             />
             <InputErrorMessage message={errors.catchphrase?.message} />
           </FormField>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <FormField>
+              <Label htmlFor="gender">性別</Label>
+              <Select id="gender" {...register("gender")}>
+                <option value="">未設定</option>
+                {GENDER_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
+              <InputErrorMessage message={errors.gender?.message} />
+            </FormField>
+
+            <FormField>
+              <Label htmlFor="ageRange">年代</Label>
+              <Select id="ageRange" {...register("ageRange")}>
+                <option value="">未設定</option>
+                {AGE_RANGE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
+              <InputErrorMessage message={errors.ageRange?.message} />
+            </FormField>
+
+            <FormField>
+              <Label htmlFor="teachingYears">講師歴（年）</Label>
+              <Input
+                id="teachingYears"
+                type="text"
+                inputMode="numeric"
+                placeholder="例: 5"
+                hasError={!!errors.teachingYears}
+                {...register("teachingYears")}
+              />
+              <InputErrorMessage message={errors.teachingYears?.message} />
+            </FormField>
+          </div>
         </div>
       </Card>
 
@@ -310,25 +364,38 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
             <InputErrorMessage message={errors.categoryIds?.message} />
           </div>
 
-          {/* オンライン対応 */}
-          <div>
-            <Checkbox label="オンライン対応可能" {...register("isOnline")} />
-          </div>
+          {/* 指導方法 */}
+          <FormField>
+            <Label htmlFor="teachingMethod">指導方法</Label>
+            <Select id="teachingMethod" {...register("teachingMethod")}>
+              <option value="">未設定</option>
+              {TEACHING_METHOD_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
+            <InputErrorMessage message={errors.teachingMethod?.message} />
+          </FormField>
 
           {/* 対応地域 */}
           <div>
-            <Label>対応地域（複数選択可）</Label>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-              {PREFECTURES.map((pref) => (
-                <Checkbox
-                  key={pref}
-                  label={pref}
-                  value={pref}
-                  {...register("prefectures")}
+            <Label>対応地域</Label>
+            <p className="mb-2 text-xs text-muted">
+              都道府県を選ぶと市町村の候補が切り替わります。市町村未選択は「都道府県全域」として登録されます。
+            </p>
+            <Controller
+              name="areas"
+              control={control}
+              render={({ field }) => (
+                <AreaFieldsEditor
+                  value={field.value ?? []}
+                  onChange={field.onChange}
+                  disabled={isSubmitting}
                 />
-              ))}
-            </div>
-            <InputErrorMessage message={errors.prefectures?.message} />
+              )}
+            />
+            <InputErrorMessage message={errors.areas?.message} />
           </div>
 
           {/* 参考価格 */}
@@ -359,9 +426,9 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
             <InputErrorMessage message={errors.priceMax?.message} />
           </div>
 
-          {/* 対象年齢 */}
+          {/* 指導対象 */}
           <div>
-            <Label>対象年齢（複数選択可）</Label>
+            <Label>指導対象（複数選択可）</Label>
             <div className="flex flex-wrap gap-2">
               {TARGET_AGE_OPTIONS.map((option) => (
                 <Checkbox

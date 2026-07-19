@@ -1,7 +1,22 @@
-import type { Prisma, SkillLevel, TargetAge } from "@prisma/client";
+import type {
+  AgeRange,
+  Gender,
+  Prisma,
+  SkillLevel,
+  TargetAge,
+  TeachingMethod,
+} from "@prisma/client";
 import { getDb } from "@/lib/db";
-import { isSkillLevel, isTargetAge, type TeacherSort } from "@/constants/teacher";
+import {
+  isAgeRange,
+  isGender,
+  isSkillLevel,
+  isTargetAge,
+  isTeachingMethod,
+  type TeacherSort,
+} from "@/constants/teacher";
 import { PREFECTURES } from "@/constants/prefectures";
+import { isCityInPrefecture } from "@/constants/cities-by-prefecture";
 
 /**
  * 先生検索のロジック（サーバー専用）
@@ -20,6 +35,7 @@ export interface TeacherSearchQuery {
   keyword: string;
   categoryId: string;
   prefecture: string;
+  city: string;
   online: boolean;
   accepting: boolean;
   verified: boolean;
@@ -27,6 +43,11 @@ export interface TeacherSearchQuery {
   maxPrice?: number;
   targetAge?: TargetAge;
   skillLevel?: SkillLevel;
+  gender?: Gender;
+  ageRange?: AgeRange;
+  /** 講師歴 N年以上 */
+  teachingYearsMin?: number;
+  teachingMethod?: TeachingMethod;
   sort: TeacherSort;
   page: number;
 }
@@ -59,23 +80,47 @@ export function parseTeacherSearchParams(
     sortRaw === "price_asc" || sortRaw === "price_desc" ? sortRaw : "new";
 
   const prefecture = firstValue(params.prefecture);
+  const validPrefecture = (PREFECTURES as readonly string[]).includes(
+    prefecture,
+  )
+    ? prefecture
+    : "";
+
+  const cityRaw = firstValue(params.city).trim();
+  const city =
+    validPrefecture && cityRaw && isCityInPrefecture(validPrefecture, cityRaw)
+      ? cityRaw
+      : "";
+
   const targetAgeRaw = firstValue(params.targetAge);
   const skillLevelRaw = firstValue(params.skillLevel);
+  const genderRaw = firstValue(params.gender);
+  const ageRangeRaw = firstValue(params.ageRange);
+  const teachingMethodRaw = firstValue(params.teachingMethod);
   const pageNum = toPositiveInt(firstValue(params.page)) ?? 1;
+  const teachingYearsMin = toPositiveInt(firstValue(params.teachingYearsMin));
+
+  // teachingMethod 未指定時のみ、旧 online=1 を互換として ONLINE/BOTH に相当する isOnline 検索へ
+  const teachingMethod = isTeachingMethod(teachingMethodRaw)
+    ? teachingMethodRaw
+    : undefined;
 
   return {
     keyword: firstValue(params.keyword).trim().slice(0, 100),
     categoryId: firstValue(params.categoryId),
-    prefecture: (PREFECTURES as readonly string[]).includes(prefecture)
-      ? prefecture
-      : "",
-    online: firstValue(params.online) === "1",
+    prefecture: validPrefecture,
+    city,
+    online: !teachingMethod && firstValue(params.online) === "1",
     accepting: firstValue(params.accepting) === "1",
     verified: firstValue(params.verified) === "1",
     minPrice: toPositiveInt(firstValue(params.minPrice)),
     maxPrice: toPositiveInt(firstValue(params.maxPrice)),
     targetAge: isTargetAge(targetAgeRaw) ? targetAgeRaw : undefined,
     skillLevel: isSkillLevel(skillLevelRaw) ? skillLevelRaw : undefined,
+    gender: isGender(genderRaw) ? genderRaw : undefined,
+    ageRange: isAgeRange(ageRangeRaw) ? ageRangeRaw : undefined,
+    teachingYearsMin,
+    teachingMethod,
     sort,
     page: Math.max(1, pageNum),
   };
@@ -92,6 +137,7 @@ export function serializeSearchQuery(
   if (query.keyword) params.set("keyword", query.keyword);
   if (query.categoryId) params.set("categoryId", query.categoryId);
   if (query.prefecture) params.set("prefecture", query.prefecture);
+  if (query.city) params.set("city", query.city);
   if (query.online) params.set("online", "1");
   if (query.accepting) params.set("accepting", "1");
   if (query.verified) params.set("verified", "1");
@@ -101,6 +147,12 @@ export function serializeSearchQuery(
     params.set("maxPrice", String(query.maxPrice));
   if (query.targetAge) params.set("targetAge", query.targetAge);
   if (query.skillLevel) params.set("skillLevel", query.skillLevel);
+  if (query.gender) params.set("gender", query.gender);
+  if (query.ageRange) params.set("ageRange", query.ageRange);
+  if (query.teachingYearsMin !== undefined)
+    params.set("teachingYearsMin", String(query.teachingYearsMin));
+  if (query.teachingMethod)
+    params.set("teachingMethod", query.teachingMethod);
   if (query.sort !== "new") params.set("sort", query.sort);
   if (query.page > 1) params.set("page", String(query.page));
   return params;
@@ -116,12 +168,13 @@ export const TEACHER_CARD_SELECT = {
   priceMin: true,
   priceMax: true,
   isOnline: true,
+  teachingMethod: true,
   isAcceptingStudents: true,
   isVerified: true,
   ratingAverage: true,
   reviewCount: true,
   categories: { select: { category: { select: { name: true } } } },
-  areas: { select: { prefecture: true } },
+  areas: { select: { prefecture: true, city: true } },
 } satisfies Prisma.TeacherProfileSelect;
 
 /** カード表示用の先生データ型 */
@@ -147,28 +200,68 @@ function buildWhere(
     isPublic: true,
     status: "APPROVED",
   };
+  const and: Prisma.TeacherProfileWhereInput[] = [];
 
   if (query.keyword) {
-    where.OR = [
-      { displayName: { contains: query.keyword, mode: "insensitive" } },
-      { catchphrase: { contains: query.keyword, mode: "insensitive" } },
-      { bio: { contains: query.keyword, mode: "insensitive" } },
-    ];
+    and.push({
+      OR: [
+        { displayName: { contains: query.keyword, mode: "insensitive" } },
+        { catchphrase: { contains: query.keyword, mode: "insensitive" } },
+        { bio: { contains: query.keyword, mode: "insensitive" } },
+      ],
+    });
   }
 
   if (query.categoryId) {
     where.categories = { some: { categoryId: query.categoryId } };
   }
 
+  // 地域: 市町村指定時は「その市」または「都道府県全域（city null）」をマッチ
   if (query.prefecture) {
-    where.areas = { some: { prefecture: query.prefecture } };
+    if (query.city) {
+      where.areas = {
+        some: {
+          prefecture: query.prefecture,
+          OR: [{ city: query.city }, { city: null }],
+        },
+      };
+    } else {
+      where.areas = { some: { prefecture: query.prefecture } };
+    }
   }
 
-  if (query.online) where.isOnline = true;
+  // 指導方法（新）優先。未設定時は旧 online=1 を isOnline で互換検索
+  if (query.teachingMethod === "ONLINE") {
+    and.push({
+      OR: [
+        { teachingMethod: "ONLINE" },
+        { teachingMethod: "BOTH" },
+        { teachingMethod: null, isOnline: true },
+      ],
+    });
+  } else if (query.teachingMethod === "IN_PERSON") {
+    and.push({
+      OR: [
+        { teachingMethod: "IN_PERSON" },
+        { teachingMethod: "BOTH" },
+        { teachingMethod: null, isOnline: false },
+      ],
+    });
+  } else if (query.teachingMethod === "BOTH") {
+    where.teachingMethod = "BOTH";
+  } else if (query.online) {
+    where.isOnline = true;
+  }
+
   if (query.accepting) where.isAcceptingStudents = true;
   if (query.verified) where.isVerified = true;
   if (query.targetAge) where.targetAges = { has: query.targetAge };
   if (query.skillLevel) where.skillLevels = { has: query.skillLevel };
+  if (query.gender) where.gender = query.gender;
+  if (query.ageRange) where.ageRange = query.ageRange;
+  if (query.teachingYearsMin !== undefined) {
+    where.teachingYears = { gte: query.teachingYearsMin };
+  }
 
   // 参考価格（先生の下限価格 priceMin を基準に絞り込む）
   if (query.minPrice !== undefined || query.maxPrice !== undefined) {
@@ -176,6 +269,10 @@ function buildWhere(
       ...(query.minPrice !== undefined ? { gte: query.minPrice } : {}),
       ...(query.maxPrice !== undefined ? { lte: query.maxPrice } : {}),
     };
+  }
+
+  if (and.length > 0) {
+    where.AND = and;
   }
 
   return where;

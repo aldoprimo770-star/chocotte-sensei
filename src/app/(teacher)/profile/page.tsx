@@ -27,6 +27,11 @@ export default async function ProfileEditPage() {
     notFound();
   }
 
+  // 旧データ互換: teachingMethod 未設定なら isOnline から推定
+  const teachingMethodDefault =
+    profile.teachingMethod ??
+    (profile.isOnline ? ("ONLINE" as const) : ("" as const));
+
   // DBの値をフォーム入力形式（文字列・配列）へ変換
   const defaultValues: TeacherProfileFormInput = {
     displayName: profile.displayName,
@@ -39,13 +44,19 @@ export default async function ProfileEditPage() {
     snsUrl: profile.snsUrl ?? "",
     phone: profile.phone ?? "",
     lineId: profile.lineId ?? "",
+    gender: profile.gender ?? "",
+    ageRange: profile.ageRange ?? "",
+    teachingYears: profile.teachingYears?.toString() ?? "",
+    teachingMethod: teachingMethodDefault,
     priceMin: profile.priceMin?.toString() ?? "",
     priceMax: profile.priceMax?.toString() ?? "",
     targetAges: profile.targetAges,
     skillLevels: profile.skillLevels,
     categoryIds: profile.categories.map((c) => c.categoryId),
-    prefectures: profile.areas.map((a) => a.prefecture),
-    isOnline: profile.isOnline,
+    areas: profile.areas.map((a) => ({
+      prefecture: a.prefecture,
+      city: a.city ?? "",
+    })),
     isAcceptingStudents: profile.isAcceptingStudents,
   };
 

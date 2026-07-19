@@ -28,7 +28,9 @@ export function TeacherCard({
   isFavorited?: boolean;
 }) {
   const categoryNames = teacher.categories.map((c) => c.category.name);
-  const prefectures = teacher.areas.map((a) => a.prefecture);
+  const areaLabels = teacher.areas.map((a) =>
+    a.city ? `${a.prefecture} ${a.city}` : a.prefecture,
+  );
   const showFavorite = favoriteInteraction && favoriteCallbackUrl;
 
   return (
@@ -107,8 +109,8 @@ export function TeacherCard({
             <div className="flex gap-2">
               <dt className="shrink-0 text-muted">地域</dt>
               <dd className="line-clamp-1 text-foreground">
-                {prefectures.length > 0
-                  ? prefectures.join("、")
+                {areaLabels.length > 0
+                  ? areaLabels.join("、")
                   : teacher.isOnline
                     ? "オンラインのみ"
                     : "未設定"}

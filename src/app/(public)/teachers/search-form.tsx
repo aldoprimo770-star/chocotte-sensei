@@ -9,9 +9,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { PREFECTURES } from "@/constants/prefectures";
+import { getCitiesByPrefecture } from "@/constants/cities-by-prefecture";
 import {
+  AGE_RANGE_OPTIONS,
+  GENDER_OPTIONS,
   SKILL_LEVEL_OPTIONS,
   TARGET_AGE_OPTIONS,
+  TEACHING_METHOD_OPTIONS,
+  TEACHING_YEARS_FILTER_OPTIONS,
 } from "@/constants/teacher";
 
 /** フォームの入力状態（すべて文字列/真偽値で保持） */
@@ -19,8 +24,13 @@ interface SearchFormState {
   keyword: string;
   categoryId: string;
   prefecture: string;
+  city: string;
   targetAge: string;
   skillLevel: string;
+  gender: string;
+  ageRange: string;
+  teachingYearsMin: string;
+  teachingMethod: string;
   minPrice: string;
   maxPrice: string;
   online: boolean;
@@ -49,11 +59,19 @@ export function SearchForm({ categories, initial }: SearchFormProps) {
     if (next.keyword.trim()) params.set("keyword", next.keyword.trim());
     if (next.categoryId) params.set("categoryId", next.categoryId);
     if (next.prefecture) params.set("prefecture", next.prefecture);
+    if (next.city) params.set("city", next.city);
     if (next.targetAge) params.set("targetAge", next.targetAge);
     if (next.skillLevel) params.set("skillLevel", next.skillLevel);
+    if (next.gender) params.set("gender", next.gender);
+    if (next.ageRange) params.set("ageRange", next.ageRange);
+    if (next.teachingYearsMin)
+      params.set("teachingYearsMin", next.teachingYearsMin);
+    if (next.teachingMethod)
+      params.set("teachingMethod", next.teachingMethod);
     if (next.minPrice.trim()) params.set("minPrice", next.minPrice.trim());
     if (next.maxPrice.trim()) params.set("maxPrice", next.maxPrice.trim());
-    if (next.online) params.set("online", "1");
+    // 指導方法未指定時のみ旧 online フラグを送る
+    if (!next.teachingMethod && next.online) params.set("online", "1");
     if (next.accepting) params.set("accepting", "1");
     if (next.verified) params.set("verified", "1");
 
@@ -71,8 +89,19 @@ export function SearchForm({ categories, initial }: SearchFormProps) {
     key: K,
     value: SearchFormState[K],
   ) {
-    setState((prev) => ({ ...prev, [key]: value }));
+    setState((prev) => {
+      const next = { ...prev, [key]: value };
+      // 都道府県変更時は市町村をリセット
+      if (key === "prefecture") {
+        next.city = "";
+      }
+      return next;
+    });
   }
+
+  const cities = state.prefecture
+    ? getCitiesByPrefecture(state.prefecture)
+    : [];
 
   return (
     <Card>
@@ -124,9 +153,27 @@ export function SearchForm({ categories, initial }: SearchFormProps) {
             </Select>
           </div>
 
-          {/* 対象年齢 */}
+          {/* 市町村 */}
           <div>
-            <Label htmlFor="targetAge">対象年齢</Label>
+            <Label htmlFor="city">市町村</Label>
+            <Select
+              id="city"
+              value={state.city}
+              disabled={!state.prefecture}
+              onChange={(e) => update("city", e.target.value)}
+            >
+              <option value="">すべて</option>
+              {cities.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          {/* 指導対象 */}
+          <div>
+            <Label htmlFor="targetAge">指導対象</Label>
             <Select
               id="targetAge"
               value={state.targetAge}
@@ -135,6 +182,74 @@ export function SearchForm({ categories, initial }: SearchFormProps) {
               <option value="">すべて</option>
               {TARGET_AGE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          {/* 指導方法 */}
+          <div>
+            <Label htmlFor="teachingMethod">指導方法</Label>
+            <Select
+              id="teachingMethod"
+              value={state.teachingMethod}
+              onChange={(e) => update("teachingMethod", e.target.value)}
+            >
+              <option value="">すべて</option>
+              {TEACHING_METHOD_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          {/* 性別 */}
+          <div>
+            <Label htmlFor="gender">性別</Label>
+            <Select
+              id="gender"
+              value={state.gender}
+              onChange={(e) => update("gender", e.target.value)}
+            >
+              <option value="">すべて</option>
+              {GENDER_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          {/* 年代 */}
+          <div>
+            <Label htmlFor="ageRange">年代</Label>
+            <Select
+              id="ageRange"
+              value={state.ageRange}
+              onChange={(e) => update("ageRange", e.target.value)}
+            >
+              <option value="">すべて</option>
+              {AGE_RANGE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          {/* 講師歴 */}
+          <div>
+            <Label htmlFor="teachingYearsMin">講師歴</Label>
+            <Select
+              id="teachingYearsMin"
+              value={state.teachingYearsMin}
+              onChange={(e) => update("teachingYearsMin", e.target.value)}
+            >
+              <option value="">すべて</option>
+              {TEACHING_YEARS_FILTER_OPTIONS.map((o) => (
+                <option key={o.value} value={String(o.value)}>
                   {o.label}
                 </option>
               ))}
@@ -187,11 +302,13 @@ export function SearchForm({ categories, initial }: SearchFormProps) {
 
         {/* 絞り込みトグル */}
         <div className="flex flex-wrap gap-2">
-          <Checkbox
-            label="オンライン対応"
-            checked={state.online}
-            onChange={(e) => update("online", e.target.checked)}
-          />
+          {!state.teachingMethod && (
+            <Checkbox
+              label="オンライン対応"
+              checked={state.online}
+              onChange={(e) => update("online", e.target.checked)}
+            />
+          )}
           <Checkbox
             label="新規受付中"
             checked={state.accepting}
