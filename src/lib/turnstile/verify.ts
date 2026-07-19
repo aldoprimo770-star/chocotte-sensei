@@ -16,10 +16,10 @@ export interface TurnstileVerifyResult {
 
 /** Turnstile が設定済みか（サイトキー・シークレットの両方が必要） */
 export function isTurnstileConfigured(): boolean {
-  return Boolean(
-    process.env.TURNSTILE_SITE_KEY?.trim() &&
-      process.env.TURNSTILE_SECRET_KEY?.trim(),
-  );
+  const siteKey =
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ||
+    process.env.TURNSTILE_SITE_KEY?.trim();
+  return Boolean(siteKey && process.env.TURNSTILE_SECRET_KEY?.trim());
 }
 
 /**

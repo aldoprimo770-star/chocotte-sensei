@@ -23,7 +23,11 @@ import { TURNSTILE_ERROR_MESSAGE } from "@/constants/turnstile";
  * 送信時に Server Action(registerTeacherAction) を呼び出します。
  * メール重複などサーバー側でしか分からないエラーは formError に表示します。
  */
-export function TeacherRegisterForm() {
+export function TeacherRegisterForm({
+  turnstileSiteKey,
+}: {
+  turnstileSiteKey: string;
+}) {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
   const {
@@ -32,7 +36,7 @@ export function TeacherRegisterForm() {
     setToken: setTurnstileToken,
     resetSignal: turnstileResetSignal,
     reset: resetTurnstile,
-  } = useTurnstile();
+  } = useTurnstile(turnstileSiteKey);
 
   const {
     register,

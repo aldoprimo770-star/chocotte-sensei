@@ -6,14 +6,20 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getTurnstileSiteKey } from "@/lib/turnstile/env";
 import { TeacherRegisterForm } from "./register-form";
 
 export const metadata: Metadata = {
   title: "先生登録（無料）",
 };
 
+// Workers 実行時の環境変数からサイトキーを読むため、静的プリレンダーしない
+export const dynamic = "force-dynamic";
+
 /** 先生 新規登録ページ */
 export default function TeacherRegisterPage() {
+  const turnstileSiteKey = getTurnstileSiteKey();
+
   return (
     <Card>
       <CardHeader>
@@ -23,7 +29,7 @@ export default function TeacherRegisterPage() {
         </CardDescription>
       </CardHeader>
 
-      <TeacherRegisterForm />
+      <TeacherRegisterForm turnstileSiteKey={turnstileSiteKey} />
 
       <p className="mt-6 text-center text-sm text-muted">
         すでにアカウントをお持ちの方は{" "}

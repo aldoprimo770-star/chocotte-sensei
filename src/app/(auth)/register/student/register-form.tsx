@@ -20,7 +20,11 @@ import { TURNSTILE_ERROR_MESSAGE } from "@/constants/turnstile";
  * 生徒 新規登録フォーム（クライアントコンポーネント）
  * 先生登録フォームと同じ構成で、送信先の Server Action のみ異なります。
  */
-export function StudentRegisterForm() {
+export function StudentRegisterForm({
+  turnstileSiteKey,
+}: {
+  turnstileSiteKey: string;
+}) {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
   const {
@@ -29,7 +33,7 @@ export function StudentRegisterForm() {
     setToken: setTurnstileToken,
     resetSignal: turnstileResetSignal,
     reset: resetTurnstile,
-  } = useTurnstile();
+  } = useTurnstile(turnstileSiteKey);
 
   const {
     register,

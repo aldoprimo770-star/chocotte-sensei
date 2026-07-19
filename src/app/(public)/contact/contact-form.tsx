@@ -16,8 +16,13 @@ import { TURNSTILE_ERROR_MESSAGE } from "@/constants/turnstile";
 /**
  * お問い合わせフォーム（クライアントコンポーネント）
  * 送信に成功すると同一ページ内で「送信完了」表示に切り替えます。
+ * turnstileSiteKey は Server Component から渡す（Workers 実行時変数対応）。
  */
-export function ContactForm() {
+export function ContactForm({
+  turnstileSiteKey,
+}: {
+  turnstileSiteKey: string;
+}) {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const {
@@ -26,7 +31,7 @@ export function ContactForm() {
     setToken: setTurnstileToken,
     resetSignal: turnstileResetSignal,
     reset: resetTurnstile,
-  } = useTurnstile();
+  } = useTurnstile(turnstileSiteKey);
 
   const {
     register,

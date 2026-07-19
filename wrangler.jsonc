@@ -21,8 +21,9 @@
 	],
 	"vars": {
 		"R2_PUBLIC_URL": "https://pub-4c9f6da2da5842389e4fe7dc17303edd.r2.dev"
-		// Turnstile のサイトキーは NEXT_PUBLIC_TURNSTILE_SITE_KEY として
-		// ビルド時に埋め込むため、ここ（実行時 vars）には置かない。
-		// TURNSTILE_SECRET_KEY は Cloudflare の Secret（暗号化）として登録する。
+		// Turnstile:
+		// NEXT_PUBLIC_TURNSTILE_SITE_KEY … Cloudflare Dashboard の Variable（実行時）に設定
+		// TURNSTILE_SECRET_KEY           … Cloudflare Dashboard の Secret（暗号化）に設定
+		// （Site Key は公開値だが、ダッシュボードで管理する想定のためここには置かない）
 	}
 }
