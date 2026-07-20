@@ -135,6 +135,19 @@ export default async function TeacherDashboardPage() {
         </div>
       </Card>
 
+      {/* 事前相談 */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>事前相談</CardTitle>
+          <CardDescription>
+            生徒からの事前相談に返信できます（無料3往復まで）。
+          </CardDescription>
+        </CardHeader>
+        <Button href="/consultations" variant="outline" size="sm">
+          相談一覧を見る
+        </Button>
+      </Card>
+
       {/* アクション */}
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button href="/profile" variant="primary">

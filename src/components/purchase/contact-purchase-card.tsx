@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { StartConsultationButton } from "@/components/consultation/start-consultation-button";
 
 /** 公開プロフィールに出す購入導線の状態 */
 export type ContactCtaState =
@@ -15,18 +16,41 @@ export type ContactCtaState =
  */
 export function ContactPurchaseCard({
   slug,
+  teacherId,
   price,
   state,
 }: {
   slug: string;
+  teacherId: string;
   price: number;
   state: ContactCtaState;
 }) {
+  const consultMode =
+    state.kind === "guest"
+      ? ("login" as const)
+      : state.kind === "not-student"
+        ? ("hidden" as const)
+        : ("student" as const);
+
   return (
     <Card className="border-primary/30 bg-primary-light/40">
       <CardHeader>
         <CardTitle>先生に連絡する</CardTitle>
       </CardHeader>
+
+      {/* 事前相談（無料・3往復） */}
+      {consultMode !== "hidden" && (
+        <div className="mb-4">
+          <p className="mb-2 text-sm text-muted">
+            まずは無料で事前相談（3往復まで）ができます。
+          </p>
+          <StartConsultationButton
+            teacherId={teacherId}
+            teacherSlug={slug}
+            mode={consultMode}
+          />
+        </div>
+      )}
 
       {state.kind === "owned" ? (
         <>
@@ -48,7 +72,7 @@ export function ContactPurchaseCard({
         </>
       ) : state.kind === "not-student" ? (
         <p className="text-sm text-muted">
-          連絡先の購入は生徒アカウントでご利用いただけます。
+          連絡先の購入・事前相談は生徒アカウントでご利用いただけます。
         </p>
       ) : (
         <>

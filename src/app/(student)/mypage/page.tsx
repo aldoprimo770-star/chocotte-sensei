@@ -100,6 +100,17 @@ export default async function StudentMyPage() {
         </Card>
         <Card>
           <CardHeader>
+            <CardTitle>事前相談</CardTitle>
+          </CardHeader>
+          <p className="mb-4 text-sm text-muted">
+            先生への無料事前相談（3往復まで）を確認できます。
+          </p>
+          <Button href="/mypage/consultations" variant="outline" size="sm">
+            相談一覧を見る
+          </Button>
+        </Card>
+        <Card>
+          <CardHeader>
             <CardTitle>購入履歴</CardTitle>
           </CardHeader>
           <p className="mb-4 text-sm text-muted">

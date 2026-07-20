@@ -181,6 +181,7 @@ export default async function TeacherPublicProfilePage({
       <div className="mt-6">
         <ContactPurchaseCard
           slug={teacher.slug}
+          teacherId={teacher.id}
           price={SITE.contactPrice}
           state={contactState}
         />

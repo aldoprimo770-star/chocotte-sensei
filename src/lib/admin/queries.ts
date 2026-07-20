@@ -211,3 +211,79 @@ export async function getAdminAnnouncements() {
     },
   });
 }
+
+/** 事前相談履歴（管理画面） */
+export async function getAdminConsultations() {
+  return getDb().conversation.findMany({
+    where: { type: "PRE_CONSULTATION" },
+    orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
+    take: ADMIN_LIST_LIMIT,
+    select: {
+      id: true,
+      status: true,
+      createdAt: true,
+      lastMessageAt: true,
+      student: {
+        select: {
+          email: true,
+          studentProfile: { select: { displayName: true } },
+        },
+      },
+      teacher: { select: { displayName: true, slug: true } },
+      messages: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          body: true,
+          senderRole: true,
+          createdAt: true,
+        },
+      },
+      _count: { select: { messages: true, reports: true } },
+    },
+  });
+}
+
+/** NGワード一覧 */
+export async function getAdminNgWords() {
+  return getDb().ngWord.findMany({
+    orderBy: [{ category: "asc" }, { word: "asc" }],
+    take: 500,
+  });
+}
+
+/** 通報一覧 */
+export async function getAdminReports() {
+  return getDb().conversationReport.findMany({
+    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+    take: ADMIN_LIST_LIMIT,
+    select: {
+      id: true,
+      reason: true,
+      status: true,
+      adminNote: true,
+      createdAt: true,
+      reporter: {
+        select: {
+          email: true,
+          role: true,
+          studentProfile: { select: { displayName: true } },
+          teacherProfile: { select: { displayName: true } },
+        },
+      },
+      conversation: {
+        select: {
+          id: true,
+          teacher: { select: { displayName: true } },
+          student: {
+            select: {
+              email: true,
+              studentProfile: { select: { displayName: true } },
+            },
+          },
+        },
+      },
+      message: { select: { id: true, body: true } },
+    },
+  });
+}

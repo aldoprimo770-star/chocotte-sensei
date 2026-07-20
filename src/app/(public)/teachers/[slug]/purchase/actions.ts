@@ -91,7 +91,13 @@ export async function purchaseWithPayPalAction(
       data: { status: "COMPLETED", contactRevealedAt: new Date() },
     });
 
+    const { unlockPreConsultationAfterPurchase } = await import(
+      "@/lib/consultation/unlock"
+    );
+    await unlockPreConsultationAfterPurchase(studentId, teacherId);
+
     revalidatePath("/mypage/purchases");
+    revalidatePath("/mypage/consultations");
     revalidatePath("/admin/purchases");
     revalidatePath("/admin");
 

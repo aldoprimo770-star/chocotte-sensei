@@ -10,6 +10,9 @@ export const ADMIN_NAV_LINKS: ReadonlyArray<{ href: string; label: string }> = [
   { href: "/admin/verifications", label: "本人確認" },
   { href: "/admin/reviews", label: "レビュー" },
   { href: "/admin/purchases", label: "購入管理" },
+  { href: "/admin/consultations", label: "相談履歴" },
+  { href: "/admin/ng-words", label: "NGワード" },
+  { href: "/admin/reports", label: "通報" },
   { href: "/admin/inquiries", label: "お問い合わせ" },
 ];
 

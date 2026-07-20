@@ -129,7 +129,7 @@ export async function confirmPurchasePaymentAction(
   const session = await requireRole("ADMIN");
 
   try {
-    await getDb().purchase.update({
+    const purchase = await getDb().purchase.update({
       where: { id: purchaseId },
       data: {
         status: "COMPLETED",
@@ -137,9 +137,20 @@ export async function confirmPurchasePaymentAction(
         confirmedBy: session.user.id,
         contactRevealedAt: new Date(),
       },
+      select: { studentId: true, teacherId: true },
     });
+
+    const { unlockPreConsultationAfterPurchase } = await import(
+      "@/lib/consultation/unlock"
+    );
+    await unlockPreConsultationAfterPurchase(
+      purchase.studentId,
+      purchase.teacherId,
+    );
+
     revalidatePath("/admin/purchases");
     revalidatePath("/admin");
+    revalidatePath("/mypage/consultations");
     return { success: true };
   } catch {
     return { success: false, error: "入金確認に失敗しました。" };
@@ -720,5 +731,122 @@ export async function deleteAnnouncementAction(
     return { success: true };
   } catch {
     return { success: false, error: "お知らせの削除に失敗しました。" };
+  }
+}
+
+/** NGワードを追加 */
+export async function createNgWordAction(input: {
+  word: string;
+  category: string;
+}): Promise<FormActionResult> {
+  await requireRole("ADMIN");
+  const { ngWordCreateSchema } = await import("@/schemas/consultation.schema");
+  const { ensureDefaultNgWords } = await import("@/lib/consultation/ng-words");
+  await ensureDefaultNgWords();
+
+  const parsed = ngWordCreateSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "入力内容をご確認ください。",
+    };
+  }
+
+  try {
+    await getDb().ngWord.create({
+      data: {
+        word: parsed.data.word,
+        category: parsed.data.category,
+        isActive: true,
+      },
+    });
+    revalidatePath("/admin/ng-words");
+    return { success: true };
+  } catch {
+    return {
+      success: false,
+      error: "追加に失敗しました（同じワードが既にある可能性があります）。",
+    };
+  }
+}
+
+/** NGワードを更新 */
+export async function updateNgWordAction(input: {
+  id: string;
+  word: string;
+  category: string;
+  isActive: boolean;
+}): Promise<FormActionResult> {
+  await requireRole("ADMIN");
+  const { ngWordUpdateSchema } = await import("@/schemas/consultation.schema");
+  const parsed = ngWordUpdateSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "入力内容をご確認ください。",
+    };
+  }
+
+  try {
+    await getDb().ngWord.update({
+      where: { id: parsed.data.id },
+      data: {
+        word: parsed.data.word,
+        category: parsed.data.category,
+        isActive: parsed.data.isActive,
+      },
+    });
+    revalidatePath("/admin/ng-words");
+    return { success: true };
+  } catch {
+    return { success: false, error: "更新に失敗しました。" };
+  }
+}
+
+/** NGワードを削除 */
+export async function deleteNgWordAction(
+  id: string,
+): Promise<FormActionResult> {
+  await requireRole("ADMIN");
+  try {
+    await getDb().ngWord.delete({ where: { id } });
+    revalidatePath("/admin/ng-words");
+    return { success: true };
+  } catch {
+    return { success: false, error: "削除に失敗しました。" };
+  }
+}
+
+/** 通報ステータスを更新 */
+export async function updateReportStatusAction(input: {
+  reportId: string;
+  status: string;
+  adminNote?: string;
+}): Promise<FormActionResult> {
+  await requireRole("ADMIN");
+  const { reportStatusUpdateSchema } = await import(
+    "@/schemas/consultation.schema"
+  );
+  const parsed = reportStatusUpdateSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "入力内容をご確認ください。",
+    };
+  }
+
+  try {
+    await getDb().conversationReport.update({
+      where: { id: parsed.data.reportId },
+      data: {
+        status: parsed.data.status,
+        adminNote: parsed.data.adminNote ?? null,
+      },
+    });
+    revalidatePath("/admin/reports");
+    revalidatePath("/admin");
+    return { success: true };
+  } catch {
+    return { success: false, error: "通報の更新に失敗しました。" };
   }
 }

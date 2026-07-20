@@ -140,6 +140,49 @@ enum NotificationType {
   VERIFICATION_RESULT // 本人確認の結果
   NEW_PURCHASE // 連絡先が購入された（先生向け）
   NEW_REVIEW // 新しいレビュー
+  NEW_CONSULTATION // 事前相談が届いた（先生向け）
+  CONSULTATION_REPLY // 事前相談の返信（生徒向け）
+}
+
+/// 会話の種類（事前相談 → 将来のチャットへ拡張可能）
+enum ConversationType {
+  PRE_CONSULTATION // 事前相談（無料往復制限あり）
+  CHAT // 将来の通常チャット
+}
+
+/// 会話スレッドの状態
+enum ConversationStatus {
+  OPEN // やり取り可能
+  LOCKED // 無料枠終了（連絡先購入で再開可）
+  CLOSED // 終了
+}
+
+/// メッセージ送信者の役割
+enum MessageSenderRole {
+  STUDENT
+  TEACHER
+  SYSTEM
+}
+
+/// メッセージ種別（将来の画像・システムメッセージ拡張用）
+enum MessageKind {
+  TEXT
+  SYSTEM
+}
+
+/// NGワードのカテゴリ
+enum NgWordCategory {
+  CONTACT_EXCHANGE // 連絡先交換
+  SOLICITATION // 勧誘・詐欺防止
+  CUSTOM // 管理者が追加した任意ワード
+}
+
+/// 通報の対応ステータス
+enum ReportStatus {
+  NEW // 未対応
+  REVIEWING // 対応中
+  RESOLVED // 対応完了
+  DISMISSED // 対応不要
 }
 
 // ============================================================
@@ -168,6 +211,9 @@ model User {
   recentlyViewed RecentlyViewed[] // この生徒が最近見た先生
   notifications  Notification[] // この生徒/先生宛の通知
   passwordResetTokens PasswordResetToken[] // パスワード再設定トークン
+  conversationsAsStudent Conversation[] @relation("ConversationStudent")
+  conversationMessages   ConversationMessage[]
+  conversationReports    ConversationReport[]
 
   @@map("users")
 }
@@ -252,6 +298,7 @@ model TeacherProfile {
   recentlyViewed RecentlyViewed[] // 生徒に閲覧された記録
   purchases      Purchase[] // 連絡先を購入された記録
   verification   IdentityVerification? // 本人確認申請
+  conversations  Conversation[] // 事前相談・チャットスレッド
 
   // --- 検索用インデックス ---
   // 一覧・検索の基本条件（公開中 かつ 受付中）で頻繁に絞り込むため複合indexを用意
@@ -519,6 +566,89 @@ model Announcement {
   @@index([published, displayOrder])
   @@index([published, createdAt])
   @@map("announcements")
+}
+
+// ============================================================
+// 事前相談 / チャット（Conversation 基盤）
+// ------------------------------------------------------------
+// 現在は PRE_CONSULTATION のみ。将来 CHAT タイプや MessageKind を
+// 追加しても同一テーブルで拡張できる設計。
+// ============================================================
+
+/// 生徒↔先生の会話スレッド
+model Conversation {
+  id            String             @id @default(cuid())
+  type          ConversationType   @default(PRE_CONSULTATION)
+  status        ConversationStatus @default(OPEN)
+  studentId     String             @map("student_id") // User.id（生徒）
+  teacherId     String             @map("teacher_id") // TeacherProfile.id
+  lastMessageAt DateTime?          @map("last_message_at")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  student  User                   @relation("ConversationStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  teacher  TeacherProfile         @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  messages ConversationMessage[]
+  reports  ConversationReport[]
+
+  @@unique([studentId, teacherId, type])
+  @@index([teacherId, lastMessageAt])
+  @@index([studentId, lastMessageAt])
+  @@index([status])
+  @@map("conversations")
+}
+
+/// 会話内メッセージ
+model ConversationMessage {
+  id             String            @id @default(cuid())
+  conversationId String            @map("conversation_id")
+  senderUserId   String            @map("sender_user_id")
+  senderRole     MessageSenderRole @map("sender_role")
+  kind           MessageKind       @default(TEXT)
+  body           String            @db.Text
+  createdAt      DateTime          @default(now()) @map("created_at")
+
+  conversation Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User                 @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
+  reports      ConversationReport[]
+
+  @@index([conversationId, createdAt])
+  @@index([senderUserId])
+  @@map("conversation_messages")
+}
+
+/// 送信時にブロックする NG ワード（管理画面で CRUD）
+model NgWord {
+  id        String         @id @default(cuid())
+  word      String         @unique
+  category  NgWordCategory
+  isActive  Boolean        @default(true) @map("is_active")
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  @@index([isActive, category])
+  @@map("ng_words")
+}
+
+/// 相談・メッセージへの通報
+model ConversationReport {
+  id             String       @id @default(cuid())
+  conversationId String       @map("conversation_id")
+  messageId      String?      @map("message_id")
+  reporterUserId String       @map("reporter_user_id")
+  reason         String       @db.Text
+  status         ReportStatus @default(NEW)
+  adminNote      String?      @map("admin_note") @db.Text
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  conversation Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  message      ConversationMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  reporter     User                 @relation(fields: [reporterUserId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([conversationId])
+  @@map("conversation_reports")
 }
 
 // ============================================================
