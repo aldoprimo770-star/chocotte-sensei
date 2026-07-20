@@ -42,6 +42,7 @@ export const TEACHER_PUBLIC_SELECT = {
   gender: true,
   ageRange: true,
   teachingYears: true,
+  teachingMethods: true,
   teachingMethod: true,
   isOnline: true,
   hasTrial: true,

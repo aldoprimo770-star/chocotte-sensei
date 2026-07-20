@@ -13,9 +13,12 @@ import {
   getGenderLabel,
   getSkillLevelLabel,
   getTargetAgeLabel,
-  getTeachingMethodLabel,
-  teachingMethodToIsOnline,
+  getTeachingMethodBadgeText,
 } from "@/constants/teacher";
+import {
+  resolveTeachingMethods,
+  teachingMethodsIncludeOnline,
+} from "@/lib/teacher/teaching-methods";
 import { extractYouTubeId } from "@/lib/validation";
 import { formatPriceRange } from "@/lib/teacher/format";
 import { showVerifiedBadge } from "@/lib/verification/status";
@@ -39,6 +42,7 @@ export interface ProfileViewData {
   gender?: Gender | null;
   ageRange?: AgeRange | null;
   teachingYears?: number | null;
+  teachingMethods?: TeachingMethod[] | null;
   teachingMethod?: TeachingMethod | null;
   isOnline: boolean;
   isAcceptingStudents: boolean;
@@ -79,6 +83,8 @@ export function TeacherProfileView({
   canViewContact?: boolean;
   contact?: TeacherContactInfo | null;
 }) {
+  const teachingMethods = resolveTeachingMethods(profile);
+
   return (
     <div className="space-y-6">
       {/* ヘッダー：写真・名前・キャッチコピー */}
@@ -115,11 +121,11 @@ export function TeacherProfileView({
         {/* バッジ */}
         <div className="mt-4 flex flex-wrap justify-center gap-2">
           {showVerifiedBadge(profile) && <VerifiedBadge />}
-          {(profile.teachingMethod
-            ? teachingMethodToIsOnline(profile.teachingMethod)
-            : profile.isOnline) && (
-            <Badge color="accent">オンライン対応</Badge>
-          )}
+          {teachingMethods.map((method) => (
+            <Badge key={method} color="accent">
+              {getTeachingMethodBadgeText(method)}
+            </Badge>
+          ))}
           {profile.isAcceptingStudents ? (
             <Badge color="primary">新規受付中</Badge>
           ) : (
@@ -166,17 +172,14 @@ export function TeacherProfileView({
               : "未設定"}
           </InfoRow>
           <InfoRow label="指導方法">
-            {profile.teachingMethod
-              ? getTeachingMethodLabel(profile.teachingMethod)
-              : profile.isOnline
-                ? "オンライン"
-                : "未設定"}
+            {teachingMethods.length > 0
+              ? teachingMethods.map(getTeachingMethodBadgeText).join("、")
+              : "未設定"}
           </InfoRow>
           <InfoRow label="対応地域">
             {profile.areas.length > 0
               ? profile.areas.map(formatAreaLabel).join("、")
-              : profile.teachingMethod === "ONLINE" ||
-                  (!profile.teachingMethod && profile.isOnline)
+              : teachingMethodsIncludeOnline(teachingMethods)
                 ? "オンラインのみ"
                 : "未設定"}
           </InfoRow>

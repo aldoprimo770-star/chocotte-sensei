@@ -4,6 +4,7 @@ import { requireRole } from "@/lib/auth/session";
 import { getActiveCategories } from "@/lib/categories";
 import { getTeacherProfileByUserId } from "@/lib/teacher/profile";
 import type { TeacherProfileFormInput } from "@/schemas/teacher.schema";
+import { resolveTeachingMethods } from "@/lib/teacher/teaching-methods";
 import { ProfileForm } from "./profile-form";
 
 export const metadata: Metadata = {
@@ -27,10 +28,10 @@ export default async function ProfileEditPage() {
     notFound();
   }
 
-  // 旧データ互換: teachingMethod 未設定なら isOnline から推定
-  const teachingMethodDefault =
-    profile.teachingMethod ??
-    (profile.isOnline ? ("ONLINE" as const) : ("" as const));
+  const teachingMethodsDefault = resolveTeachingMethods(profile).filter(
+    (m): m is "IN_PERSON" | "ONLINE" | "PHONE" =>
+      m === "IN_PERSON" || m === "ONLINE" || m === "PHONE",
+  );
 
   // DBの値をフォーム入力形式（文字列・配列）へ変換
   const defaultValues: TeacherProfileFormInput = {
@@ -47,7 +48,7 @@ export default async function ProfileEditPage() {
     gender: profile.gender ?? "",
     ageRange: profile.ageRange ?? "",
     teachingYears: profile.teachingYears?.toString() ?? "",
-    teachingMethod: teachingMethodDefault,
+    teachingMethods: teachingMethodsDefault,
     priceMin: profile.priceMin?.toString() ?? "",
     priceMax: profile.priceMax?.toString() ?? "",
     targetAges: profile.targetAges,

@@ -12,9 +12,9 @@ import {
   isGender,
   isSkillLevel,
   isTargetAge,
-  isTeachingMethod,
   type TeacherSort,
 } from "@/constants/teacher";
+import { isSelectableTeachingMethod } from "@/lib/teacher/teaching-methods";
 import { PREFECTURES } from "@/constants/prefectures";
 import { isCityInPrefecture } from "@/constants/cities-by-prefecture";
 
@@ -47,7 +47,8 @@ export interface TeacherSearchQuery {
   ageRange?: AgeRange;
   /** 講師歴 N年以上 */
   teachingYearsMin?: number;
-  teachingMethod?: TeachingMethod;
+  /** 指導方法（OR 検索・複数可） */
+  teachingMethods: TeachingMethod[];
   sort: TeacherSort;
   page: number;
 }
@@ -59,6 +60,15 @@ export type RawSearchParams = Record<string, string | string[] | undefined>;
 function firstValue(value: string | string[] | undefined): string {
   if (Array.isArray(value)) return value[0] ?? "";
   return value ?? "";
+}
+
+/** 複数指定可能なクエリ値を文字列配列に正規化 */
+function allValues(value: string | string[] | undefined): string[] {
+  const raw = Array.isArray(value) ? value : value ? [value] : [];
+  return raw
+    .flatMap((v) => v.split(","))
+    .map((v) => v.trim())
+    .filter(Boolean);
 }
 
 /** 正の整数に変換（不正値は undefined） */
@@ -96,21 +106,23 @@ export function parseTeacherSearchParams(
   const skillLevelRaw = firstValue(params.skillLevel);
   const genderRaw = firstValue(params.gender);
   const ageRangeRaw = firstValue(params.ageRange);
-  const teachingMethodRaw = firstValue(params.teachingMethod);
   const pageNum = toPositiveInt(firstValue(params.page)) ?? 1;
   const teachingYearsMin = toPositiveInt(firstValue(params.teachingYearsMin));
 
-  // teachingMethod 未指定時のみ、旧 online=1 を互換として ONLINE/BOTH に相当する isOnline 検索へ
-  const teachingMethod = isTeachingMethod(teachingMethodRaw)
-    ? teachingMethodRaw
-    : undefined;
+  // teachingMethods（複数）+ 旧 teachingMethod（単一）を統合
+  const teachingMethods = [
+    ...new Set(
+      [...allValues(params.teachingMethods), ...allValues(params.teachingMethod)]
+        .filter(isSelectableTeachingMethod),
+    ),
+  ] as TeachingMethod[];
 
   return {
     keyword: firstValue(params.keyword).trim().slice(0, 100),
     categoryId: firstValue(params.categoryId),
     prefecture: validPrefecture,
     city,
-    online: !teachingMethod && firstValue(params.online) === "1",
+    online: teachingMethods.length === 0 && firstValue(params.online) === "1",
     accepting: firstValue(params.accepting) === "1",
     verified: firstValue(params.verified) === "1",
     minPrice: toPositiveInt(firstValue(params.minPrice)),
@@ -120,7 +132,7 @@ export function parseTeacherSearchParams(
     gender: isGender(genderRaw) ? genderRaw : undefined,
     ageRange: isAgeRange(ageRangeRaw) ? ageRangeRaw : undefined,
     teachingYearsMin,
-    teachingMethod,
+    teachingMethods,
     sort,
     page: Math.max(1, pageNum),
   };
@@ -151,8 +163,9 @@ export function serializeSearchQuery(
   if (query.ageRange) params.set("ageRange", query.ageRange);
   if (query.teachingYearsMin !== undefined)
     params.set("teachingYearsMin", String(query.teachingYearsMin));
-  if (query.teachingMethod)
-    params.set("teachingMethod", query.teachingMethod);
+  for (const method of query.teachingMethods) {
+    params.append("teachingMethods", method);
+  }
   if (query.sort !== "new") params.set("sort", query.sort);
   if (query.page > 1) params.set("page", String(query.page));
   return params;
@@ -168,6 +181,7 @@ export const TEACHER_CARD_SELECT = {
   priceMin: true,
   priceMax: true,
   isOnline: true,
+  teachingMethods: true,
   teachingMethod: true,
   isAcceptingStudents: true,
   isVerified: true,
@@ -232,25 +246,27 @@ function buildWhere(
     }
   }
 
-  // 指導方法（新）優先。未設定時は旧 online=1 を isOnline で互換検索
-  if (query.teachingMethod === "ONLINE") {
-    and.push({
-      OR: [
-        { teachingMethod: "ONLINE" },
-        { teachingMethod: "BOTH" },
-        { teachingMethod: null, isOnline: true },
-      ],
-    });
-  } else if (query.teachingMethod === "IN_PERSON") {
-    and.push({
-      OR: [
-        { teachingMethod: "IN_PERSON" },
-        { teachingMethod: "BOTH" },
-        { teachingMethod: null, isOnline: false },
-      ],
-    });
-  } else if (query.teachingMethod === "BOTH") {
-    where.teachingMethod = "BOTH";
+  // 指導方法: 選択したいずれかに対応（OR）。配列 + 旧単一カラム互換
+  if (query.teachingMethods.length > 0) {
+    const methodOr: Prisma.TeacherProfileWhereInput[] = [
+      { teachingMethods: { hasSome: query.teachingMethods } },
+    ];
+    for (const method of query.teachingMethods) {
+      if (method === "ONLINE") {
+        methodOr.push(
+          { teachingMethod: "ONLINE" },
+          { teachingMethod: "BOTH" },
+          { teachingMethods: { isEmpty: true }, isOnline: true },
+        );
+      } else if (method === "IN_PERSON") {
+        methodOr.push(
+          { teachingMethod: "IN_PERSON" },
+          { teachingMethod: "BOTH" },
+        );
+      }
+      // PHONE は新配列のみ
+    }
+    and.push({ OR: methodOr });
   } else if (query.online) {
     where.isOnline = true;
   }

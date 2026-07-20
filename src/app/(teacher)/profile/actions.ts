@@ -9,7 +9,7 @@ import {
   type TeacherProfileFormInput,
 } from "@/schemas/teacher.schema";
 import { calculateProfileCompletion } from "@/lib/teacher/profile-completion";
-import { teachingMethodToIsOnline } from "@/constants/teacher";
+import { prepareTeachingMethodsForSave } from "@/lib/teacher/teaching-methods";
 import type { FormActionResult } from "@/types/action";
 
 /**
@@ -71,7 +71,7 @@ export async function saveTeacherProfileAction(
 
   const data = parsed.data;
 
-  const isOnline = teachingMethodToIsOnline(data.teachingMethod);
+  const teaching = prepareTeachingMethodsForSave(data.teachingMethods);
   const validAreas = data.areas.filter((a) => a.prefecture);
 
   // 完成率を計算
@@ -81,7 +81,7 @@ export async function saveTeacherProfileAction(
     bio: data.bio,
     lessonContent: data.lessonContent,
     priceMin: data.priceMin,
-    isOnline,
+    isOnline: teaching.isOnline,
     categoryCount: data.categoryIds.length,
     areaCount: validAreas.length,
     targetAgeCount: data.targetAges.length,
@@ -106,13 +106,14 @@ export async function saveTeacherProfileAction(
         gender: data.gender ?? null,
         ageRange: data.ageRange ?? null,
         teachingYears: data.teachingYears ?? null,
-        teachingMethod: data.teachingMethod ?? null,
+        teachingMethods: teaching.teachingMethods,
+        // 旧単一カラム・isOnline を同期（検索互換）
+        teachingMethod: teaching.teachingMethod,
+        isOnline: teaching.isOnline,
         priceMin: data.priceMin ?? null,
         priceMax: data.priceMax ?? null,
         targetAges: data.targetAges,
         skillLevels: data.skillLevels,
-        // 検索互換のため指導方法から同期
-        isOnline,
         isAcceptingStudents: data.isAcceptingStudents,
         // 公開時のみ状態を更新（下書きは非公開のまま）
         isPublic: mode === "publish",

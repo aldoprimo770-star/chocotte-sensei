@@ -76,7 +76,7 @@ export default async function TeachersSearchPage({
               gender: query.gender ?? "",
               ageRange: query.ageRange ?? "",
               teachingYearsMin: query.teachingYearsMin?.toString() ?? "",
-              teachingMethod: query.teachingMethod ?? "",
+              teachingMethods: query.teachingMethods,
               minPrice: query.minPrice?.toString() ?? "",
               maxPrice: query.maxPrice?.toString() ?? "",
               online: query.online,

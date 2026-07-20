@@ -5,6 +5,11 @@ import type {
   TargetAge,
   TeachingMethod,
 } from "@prisma/client";
+import {
+  isSelectableTeachingMethod,
+  resolveTeachingMethods,
+  teachingMethodsIncludeOnline,
+} from "@/lib/teacher/teaching-methods";
 
 /** 検索結果の並び替えの種類 */
 export type TeacherSort = "new" | "price_asc" | "price_desc";
@@ -73,14 +78,15 @@ export const AGE_RANGE_OPTIONS: ReadonlyArray<{
   { value: "SIXTIES_PLUS", label: "60代以上" },
 ];
 
-/** 指導方法の選択肢 */
+/** 指導方法の選択肢（複数選択・将来追加しやすいよう配列で管理） */
 export const TEACHING_METHOD_OPTIONS: ReadonlyArray<{
   value: TeachingMethod;
   label: string;
+  emoji: string;
 }> = [
-  { value: "IN_PERSON", label: "対面" },
-  { value: "ONLINE", label: "オンライン" },
-  { value: "BOTH", label: "対面・オンライン両方" },
+  { value: "IN_PERSON", label: "対面", emoji: "🏠" },
+  { value: "ONLINE", label: "オンライン", emoji: "💻" },
+  { value: "PHONE", label: "電話", emoji: "📞" },
 ];
 
 /** 検索用：講師歴（年以上）の選択肢 */
@@ -112,17 +118,32 @@ export function getAgeRangeLabel(value: AgeRange): string {
 }
 
 export function getTeachingMethodLabel(value: TeachingMethod): string {
+  if (value === "BOTH") return "対面・オンライン";
   return (
     TEACHING_METHOD_OPTIONS.find((o) => o.value === value)?.label ?? value
   );
 }
 
-/** 指導方法から互換用 isOnline を導出する */
+export function getTeachingMethodEmoji(value: TeachingMethod): string {
+  if (value === "BOTH") return "🏠💻";
+  return TEACHING_METHOD_OPTIONS.find((o) => o.value === value)?.emoji ?? "";
+}
+
+/** バッジ表示用テキスト（例: 🏠 対面） */
+export function getTeachingMethodBadgeText(value: TeachingMethod): string {
+  const emoji = getTeachingMethodEmoji(value);
+  const label = getTeachingMethodLabel(value);
+  return emoji ? `${emoji} ${label}` : label;
+}
+
+/** @deprecated teachingMethodsIncludeOnline を使用 */
 export function teachingMethodToIsOnline(
   method: TeachingMethod | null | undefined,
 ): boolean {
   return method === "ONLINE" || method === "BOTH";
 }
+
+export { resolveTeachingMethods, teachingMethodsIncludeOnline };
 
 /** 文字列が有効な TargetAge かどうか（検索パラメータの検証用） */
 export function isTargetAge(value: string): value is TargetAge {
@@ -143,5 +164,5 @@ export function isAgeRange(value: string): value is AgeRange {
 }
 
 export function isTeachingMethod(value: string): value is TeachingMethod {
-  return TEACHING_METHOD_OPTIONS.some((o) => o.value === value);
+  return isSelectableTeachingMethod(value) || value === "BOTH";
 }

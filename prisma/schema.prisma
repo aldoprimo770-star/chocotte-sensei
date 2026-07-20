@@ -70,11 +70,15 @@ enum AgeRange {
   SIXTIES_PLUS // 60代以上
 }
 
-/// 指導方法
+/**
+ * 指導方法（複数選択可・将来の追加もこの enum に足す）
+ * BOTH は旧単一選択の互換用。新規保存では使わない。
+ */
 enum TeachingMethod {
   IN_PERSON // 対面
   ONLINE // オンライン
-  BOTH // 両方
+  PHONE // 電話
+  BOTH // 旧「両方」（IN_PERSON+ONLINE 相当・レガシー）
 }
 
 /// レビューの審査ステータス
@@ -260,11 +264,16 @@ model TeacherProfile {
   gender              Gender? // 性別
   ageRange            AgeRange?     @map("age_range") // 年代
   teachingYears       Int?          @map("teaching_years") // 講師歴（年）
-  // 指導方法（任意）。既存の isOnline は検索互換のため同期して保持する
+  /**
+   * 指導方法（複数可）。UI・検索の主データ。
+   * 旧 teachingMethod / isOnline から移行し、保存時に同期する。
+   */
+  teachingMethods     TeachingMethod[] @default([]) @map("teaching_methods")
+  /** @deprecated 互換用。teachingMethods へ移行済みなら null 可 */
   teachingMethod      TeachingMethod? @map("teaching_method")
   targetAges          TargetAge[]   @map("target_ages") // 指導対象（複数可）
   skillLevels         SkillLevel[]  @map("skill_levels") // 対応レベル（複数可）
-  isOnline            Boolean       @default(false) @map("is_online") // オンライン対応（互換用）
+  isOnline            Boolean       @default(false) @map("is_online") // オンライン対応（互換・検索用）
   hasTrial            Boolean       @default(false) @map("has_trial") // 初回体験あり
   // 新規受付ON/OFF（生徒の受け入れ可否）
   isAcceptingStudents Boolean       @default(true) @map("is_accepting_students")

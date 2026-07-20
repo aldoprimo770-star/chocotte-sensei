@@ -30,7 +30,7 @@ interface SearchFormState {
   gender: string;
   ageRange: string;
   teachingYearsMin: string;
-  teachingMethod: string;
+  teachingMethods: string[];
   minPrice: string;
   maxPrice: string;
   online: boolean;
@@ -66,12 +66,14 @@ export function SearchForm({ categories, initial }: SearchFormProps) {
     if (next.ageRange) params.set("ageRange", next.ageRange);
     if (next.teachingYearsMin)
       params.set("teachingYearsMin", next.teachingYearsMin);
-    if (next.teachingMethod)
-      params.set("teachingMethod", next.teachingMethod);
+    for (const method of next.teachingMethods) {
+      params.append("teachingMethods", method);
+    }
     if (next.minPrice.trim()) params.set("minPrice", next.minPrice.trim());
     if (next.maxPrice.trim()) params.set("maxPrice", next.maxPrice.trim());
     // 指導方法未指定時のみ旧 online フラグを送る
-    if (!next.teachingMethod && next.online) params.set("online", "1");
+    if (next.teachingMethods.length === 0 && next.online)
+      params.set("online", "1");
     if (next.accepting) params.set("accepting", "1");
     if (next.verified) params.set("verified", "1");
 
@@ -96,6 +98,15 @@ export function SearchForm({ categories, initial }: SearchFormProps) {
         next.city = "";
       }
       return next;
+    });
+  }
+
+  function toggleTeachingMethod(value: string, checked: boolean) {
+    setState((prev) => {
+      const set = new Set(prev.teachingMethods);
+      if (checked) set.add(value);
+      else set.delete(value);
+      return { ...prev, teachingMethods: [...set] };
     });
   }
 
@@ -188,21 +199,21 @@ export function SearchForm({ categories, initial }: SearchFormProps) {
             </Select>
           </div>
 
-          {/* 指導方法 */}
-          <div>
-            <Label htmlFor="teachingMethod">指導方法</Label>
-            <Select
-              id="teachingMethod"
-              value={state.teachingMethod}
-              onChange={(e) => update("teachingMethod", e.target.value)}
-            >
-              <option value="">すべて</option>
+          {/* 指導方法（複数・OR） */}
+          <div className="sm:col-span-2">
+            <Label>指導方法（いずれかに対応）</Label>
+            <div className="mt-1 flex flex-wrap gap-2">
               {TEACHING_METHOD_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
+                <Checkbox
+                  key={o.value}
+                  label={`${o.emoji} ${o.label}`}
+                  checked={state.teachingMethods.includes(o.value)}
+                  onChange={(e) =>
+                    toggleTeachingMethod(o.value, e.target.checked)
+                  }
+                />
               ))}
-            </Select>
+            </div>
           </div>
 
           {/* 性別 */}
@@ -302,7 +313,7 @@ export function SearchForm({ categories, initial }: SearchFormProps) {
 
         {/* 絞り込みトグル */}
         <div className="flex flex-wrap gap-2">
-          {!state.teachingMethod && (
+          {state.teachingMethods.length === 0 && (
             <Checkbox
               label="オンライン対応"
               checked={state.online}

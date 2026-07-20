@@ -21,8 +21,8 @@ import {
   SKILL_LEVEL_OPTIONS,
   TARGET_AGE_OPTIONS,
   TEACHING_METHOD_OPTIONS,
-  teachingMethodToIsOnline,
 } from "@/constants/teacher";
+import { teachingMethodsIncludeOnline } from "@/lib/teacher/teaching-methods";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -73,12 +73,6 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
 
   // 入力状況に応じて完成率をリアルタイム計算
   const values = watch();
-  const method =
-    values.teachingMethod === "IN_PERSON" ||
-    values.teachingMethod === "ONLINE" ||
-    values.teachingMethod === "BOTH"
-      ? values.teachingMethod
-      : undefined;
   const filledAreas =
     values.areas?.filter((a) => a.prefecture?.trim()) ?? [];
   const livePercent = calculateProfileCompletion({
@@ -90,7 +84,7 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
       typeof values.priceMin === "string" && values.priceMin.trim() !== ""
         ? Number(values.priceMin)
         : null,
-    isOnline: teachingMethodToIsOnline(method),
+    isOnline: teachingMethodsIncludeOnline(values.teachingMethods ?? []),
     categoryCount: values.categoryIds?.length ?? 0,
     areaCount: filledAreas.length,
     targetAgeCount: values.targetAges?.length ?? 0,
@@ -364,19 +358,21 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
             <InputErrorMessage message={errors.categoryIds?.message} />
           </div>
 
-          {/* 指導方法 */}
-          <FormField>
-            <Label htmlFor="teachingMethod">指導方法</Label>
-            <Select id="teachingMethod" {...register("teachingMethod")}>
-              <option value="">未設定</option>
-              {TEACHING_METHOD_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
+          {/* 指導方法（複数選択） */}
+          <div>
+            <Label>指導方法（複数選択可）</Label>
+            <div className="flex flex-wrap gap-2">
+              {TEACHING_METHOD_OPTIONS.map((option) => (
+                <Checkbox
+                  key={option.value}
+                  label={`${option.emoji} ${option.label}`}
+                  value={option.value}
+                  {...register("teachingMethods")}
+                />
               ))}
-            </Select>
-            <InputErrorMessage message={errors.teachingMethod?.message} />
-          </FormField>
+            </div>
+            <InputErrorMessage message={errors.teachingMethods?.message} />
+          </div>
 
           {/* 対応地域 */}
           <div>

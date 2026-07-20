@@ -4,12 +4,11 @@ import {
   Gender,
   SkillLevel,
   TargetAge,
-  TeachingMethod,
 } from "@prisma/client";
 import { isHttpUrl, isYouTubeUrl } from "@/lib/validation";
 import { PREFECTURES } from "@/constants/prefectures";
 import { isCityInPrefecture } from "@/constants/cities-by-prefecture";
-import { teachingMethodToIsOnline } from "@/constants/teacher";
+import { teachingMethodsIncludeOnline } from "@/lib/teacher/teaching-methods";
 
 /**
  * 先生プロフィール入力の Zod スキーマ
@@ -121,7 +120,10 @@ export const teacherProfileBaseSchema = z.object({
   gender: optionalEnum(z.nativeEnum(Gender)),
   ageRange: optionalEnum(z.nativeEnum(AgeRange)),
   teachingYears: optionalTeachingYears,
-  teachingMethod: optionalEnum(z.nativeEnum(TeachingMethod)),
+  /** 指導方法（複数選択: 対面 / オンライン / 電話） */
+  teachingMethods: z
+    .array(z.enum(["IN_PERSON", "ONLINE", "PHONE"]))
+    .default([]),
 
   priceMin: optionalPrice,
   priceMax: optionalPrice,
@@ -213,20 +215,22 @@ export const teacherProfilePublishSchema = teacherProfileBaseSchema.superRefine(
       });
     }
 
-    const onlineCapable = teachingMethodToIsOnline(data.teachingMethod);
-    if (data.areas.length === 0 && !onlineCapable) {
+    const onlineCapable = teachingMethodsIncludeOnline(data.teachingMethods);
+    const phoneOrOnline =
+      onlineCapable || data.teachingMethods.includes("PHONE");
+    if (data.areas.length === 0 && !phoneOrOnline) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message:
-          "対応地域を選択するか、指導方法でオンライン（または両方）を選んでください",
+          "対応地域を選択するか、指導方法でオンラインまたは電話を選んでください",
         path: ["areas"],
       });
     }
-    if (!data.teachingMethod) {
+    if (data.teachingMethods.length === 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "指導方法を選択してください",
-        path: ["teachingMethod"],
+        message: "指導方法を1つ以上選択してください",
+        path: ["teachingMethods"],
       });
     }
     if (data.priceMin === undefined) {

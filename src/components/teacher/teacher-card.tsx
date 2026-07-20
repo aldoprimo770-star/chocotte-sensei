@@ -6,7 +6,9 @@ import {
   FavoriteButton,
   type FavoriteInteraction,
 } from "@/components/student/favorite-button";
+import { getTeachingMethodBadgeText } from "@/constants/teacher";
 import { formatPriceRange } from "@/lib/teacher/format";
+import { resolveTeachingMethods } from "@/lib/teacher/teaching-methods";
 import { showVerifiedBadge } from "@/lib/verification/status";
 import type { TeacherCardData } from "@/lib/teacher/search";
 
@@ -32,6 +34,7 @@ export function TeacherCard({
   const areaLabels = teacher.areas.map((a) =>
     a.city ? `${a.prefecture} ${a.city}` : a.prefecture,
   );
+  const teachingMethods = resolveTeachingMethods(teacher);
   const showFavorite = favoriteInteraction && favoriteCallbackUrl;
 
   return (
@@ -87,9 +90,11 @@ export function TeacherCard({
           {/* バッジ */}
           <div className="mt-3 flex flex-wrap gap-1.5">
             {showVerifiedBadge(teacher) && <VerifiedBadge size="sm" />}
-            {teacher.isOnline && (
-              <Badge color="accent">オンライン対応</Badge>
-            )}
+            {teachingMethods.map((method) => (
+              <Badge key={method} color="accent">
+                {getTeachingMethodBadgeText(method)}
+              </Badge>
+            ))}
             {teacher.isAcceptingStudents ? (
               <Badge color="primary">新規受付中</Badge>
             ) : (
