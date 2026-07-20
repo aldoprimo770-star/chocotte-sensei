@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   studentProfileSchema,
@@ -19,6 +19,7 @@ import { FormField, Input, InputErrorMessage } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { StudentAvatarUpload } from "@/components/student/student-avatar-upload";
 
 interface StudentProfileFormProps {
   defaultValues: StudentProfileFormInput;
@@ -41,8 +42,8 @@ export function StudentProfileForm({
 
   const {
     register,
+    control,
     handleSubmit,
-    watch,
     getValues,
     setError,
     formState: { errors, isSubmitting },
@@ -50,8 +51,6 @@ export function StudentProfileForm({
     resolver: zodResolver(studentProfileSchema),
     defaultValues,
   });
-
-  const avatarUrl = watch("avatarUrl")?.trim();
 
   const onSubmit = handleSubmit(async () => {
     setFormMessage(null);
@@ -96,26 +95,18 @@ export function StudentProfileForm({
           <CardTitle>基本情報</CardTitle>
         </CardHeader>
         <div className="space-y-5">
-          <FormField>
-            <Label htmlFor="avatarUrl">プロフィール画像（画像URL・任意）</Label>
-            {avatarUrl && (
-              // 外部の任意URLを表示するため next/image ではなく img を使用
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={avatarUrl}
-                alt="プロフィール画像プレビュー"
-                className="mb-3 h-24 w-24 rounded-full border border-border object-cover"
+          <Controller
+            name="avatarUrl"
+            control={control}
+            render={({ field }) => (
+              <StudentAvatarUpload
+                value={field.value ?? ""}
+                onChange={field.onChange}
+                fieldError={errors.avatarUrl?.message}
+                disabled={isSubmitting}
               />
             )}
-            <Input
-              id="avatarUrl"
-              type="url"
-              placeholder="https://example.com/avatar.jpg"
-              hasError={!!errors.avatarUrl}
-              {...register("avatarUrl")}
-            />
-            <InputErrorMessage message={errors.avatarUrl?.message} />
-          </FormField>
+          />
 
           <FormField>
             <Label htmlFor="displayName" required>
