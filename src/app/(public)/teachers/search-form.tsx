@@ -199,10 +199,17 @@ export function SearchForm({ categories, initial }: SearchFormProps) {
             </Select>
           </div>
 
-          {/* 指導方法（複数・OR） */}
+          {/* 指導方法（複数・OR・チェックボックス） */}
           <div className="sm:col-span-2">
             <Label>指導方法（いずれかに対応）</Label>
-            <div className="mt-1 flex flex-wrap gap-2">
+            <p className="mt-1 text-xs text-muted">
+              複数チェック可。いずれかに対応する先生を検索します。
+            </p>
+            <div
+              className="mt-1 flex flex-wrap gap-2"
+              role="group"
+              aria-label="指導方法（複数選択）"
+            >
               {TEACHING_METHOD_OPTIONS.map((o) => (
                 <Checkbox
                   key={o.value}

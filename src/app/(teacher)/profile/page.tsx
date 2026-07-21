@@ -68,7 +68,7 @@ export default async function ProfileEditPage() {
           プロフィール編集
         </h1>
         <p className="mt-1 text-sm text-muted">
-          入力後、「公開する」で検索結果に掲載されます
+          入力後、「公開する」で検索結果に掲載されます。指導方法は複数選択できます。
         </p>
       </div>
 

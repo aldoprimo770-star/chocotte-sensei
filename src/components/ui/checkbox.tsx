@@ -24,7 +24,8 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
         <input
           ref={ref}
           type="checkbox"
-          className="h-4 w-4 rounded border-border text-primary accent-primary focus:ring-primary"
+          // 角丸を抑え、ラジオボタンと見誤らない四角いチェックボックスにする
+          className="h-4 w-4 shrink-0 rounded-sm border border-border text-primary accent-primary focus:ring-primary"
           {...props}
         />
         <span className="text-foreground">{label}</span>

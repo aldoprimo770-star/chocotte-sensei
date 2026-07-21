@@ -420,16 +420,23 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
             <InputErrorMessage message={errors.categoryIds?.message} />
           </div>
 
-          {/* 指導方法（複数選択） */}
+          {/* 指導方法（複数選択・チェックボックス） */}
           <div>
             <Label>指導方法（複数選択可）</Label>
+            <p className="mb-2 text-xs text-muted">
+              対応する方法をすべてチェックしてください（対面・オンライン・電話）。
+            </p>
             <Controller
               name="teachingMethods"
               control={control}
               render={({ field }) => {
                 const selected = Array.isArray(field.value) ? field.value : [];
                 return (
-                  <div className="flex flex-wrap gap-2">
+                  <div
+                    className="flex flex-wrap gap-2"
+                    role="group"
+                    aria-label="指導方法（複数選択）"
+                  >
                     {TEACHING_METHOD_OPTIONS.map((option) => (
                       <Checkbox
                         key={option.value}
