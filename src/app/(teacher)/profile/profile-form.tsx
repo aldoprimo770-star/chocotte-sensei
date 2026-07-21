@@ -66,7 +66,6 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
     control,
     handleSubmit,
     watch,
-    getValues,
     setError,
     formState: { errors, isSubmitting },
   } = useForm<TeacherProfileFormInput, unknown, TeacherProfileFormValues>({
@@ -86,7 +85,9 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
     priceMin:
       typeof values.priceMin === "string" && values.priceMin.trim() !== ""
         ? Number(values.priceMin)
-        : null,
+        : typeof values.priceMin === "number"
+          ? values.priceMin
+          : null,
     isOnline: teachingMethodsIncludeOnline(
       Array.isArray(values.teachingMethods) ? values.teachingMethods : [],
     ),
@@ -104,20 +105,18 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
 
   function showMessage(message: { type: "error" | "success"; text: string }) {
     setFormMessage(message);
-    // 成功/失敗を画面上部で確実に見せる
-    requestAnimationFrame(() => {
-      messageRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+    // レンダー後にメッセージへスクロール（sticky ヘッダー分を考慮）
+    window.setTimeout(() => {
+      messageRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 0);
   }
 
-  async function submit(mode: SaveMode) {
+  async function submit(mode: SaveMode, data: TeacherProfileFormValues) {
     setSavingMode(mode);
     setFormMessage(null);
     try {
-      // getValues() は変換前の生の入力値を返す。
-      // チェックボックスの型ゆれを吸収してから Server Action へ送る。
-      const raw = normalizeProfileFormValues(getValues());
-      const result = await saveTeacherProfileAction(raw, mode);
+      // handleSubmit の検証済み data をそのまま送る（getValues は使わない）
+      const result = await saveTeacherProfileAction(data, mode);
 
       if (result.success) {
         showMessage({
@@ -141,7 +140,18 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
         type: "error",
         text: result.error ?? "保存に失敗しました",
       });
-    } catch {
+    } catch (error) {
+      // Server Action の redirect() は再スローする
+      if (
+        typeof error === "object" &&
+        error &&
+        "digest" in error &&
+        String((error as { digest?: unknown }).digest).startsWith(
+          "NEXT_REDIRECT",
+        )
+      ) {
+        throw error;
+      }
       showMessage({
         type: "error",
         text: "保存中にエラーが発生しました。時間をおいて再度お試しください。",
@@ -151,9 +161,9 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
     }
   }
 
-  // handleSubmit はクライアント検証の実行に使い、実際の値は submit 内で取得する
+  // 検証済み data を submit へ渡す（getValues は使わない）
   const onSaveDraft = handleSubmit(
-    () => submit("draft"),
+    (data) => submit("draft", data),
     () =>
       showMessage({
         type: "error",
@@ -161,7 +171,7 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
       }),
   );
   const onPublish = handleSubmit(
-    () => submit("publish"),
+    (data) => submit("publish", data),
     () =>
       showMessage({
         type: "error",
@@ -181,8 +191,8 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
             role="alert"
             className={
               formMessage.type === "error"
-                ? "rounded-xl bg-accent-light px-4 py-3 text-sm text-accent"
-                : "rounded-xl bg-primary-light px-4 py-3 text-sm text-primary"
+                ? "scroll-mt-24 rounded-xl bg-accent-light px-4 py-3 text-sm text-accent"
+                : "scroll-mt-24 rounded-xl bg-primary-light px-4 py-3 text-sm text-primary"
             }
           >
             {formMessage.text}

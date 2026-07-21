@@ -3,15 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/lib/db";
 import { requireRole } from "@/lib/auth/session";
+import { calculateProfileCompletion } from "@/lib/teacher/profile-completion";
+import { formValuesToInput } from "@/lib/teacher/normalize-profile-form";
+import { prepareTeachingMethodsForSave } from "@/lib/teacher/teaching-methods";
+import type { FormActionResult } from "@/types/action";
 import {
   teacherProfileDraftSchema,
   teacherProfilePublishSchema,
-  type TeacherProfileFormInput,
+  type TeacherProfileFormValues,
 } from "@/schemas/teacher.schema";
-import { calculateProfileCompletion } from "@/lib/teacher/profile-completion";
-import { normalizeProfileFormValues } from "@/lib/teacher/normalize-profile-form";
-import { prepareTeachingMethodsForSave } from "@/lib/teacher/teaching-methods";
-import type { FormActionResult } from "@/types/action";
 
 /**
  * プロフィール保存 Server Action
@@ -29,7 +29,8 @@ export type SaveMode = "draft" | "publish";
 export type SaveProfileResult = FormActionResult;
 
 export async function saveTeacherProfileAction(
-  input: TeacherProfileFormInput,
+  /** zodResolver 検証済みの変換後データ（getValues の生値は渡さない） */
+  values: TeacherProfileFormValues,
   mode: SaveMode,
 ): Promise<SaveProfileResult> {
   // 認証・権限チェック（先生のみ）
@@ -44,15 +45,13 @@ export async function saveTeacherProfileAction(
     return { success: false, error: "プロフィールが見つかりません" };
   }
 
-  // チェックボックスの型ゆれを吸収してから検証
-  const normalizedInput = normalizeProfileFormValues(input);
-
-  // モードに応じたスキーマで検証
+  // クライアントで transform 済みの値を入力形へ戻し、サーバーでも再検証する
+  const inputForValidation = formValuesToInput(values);
   const schema =
     mode === "publish"
       ? teacherProfilePublishSchema
       : teacherProfileDraftSchema;
-  const parsed = schema.safeParse(normalizedInput);
+  const parsed = schema.safeParse(inputForValidation);
 
   if (!parsed.success) {
     // Zodのエラーをフィールド単位に整形

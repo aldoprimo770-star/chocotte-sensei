@@ -36,6 +36,10 @@ yarn-error.log*
 .env.*.local
 !.env.example
 
+# local diagnosis / temp credentials (never commit)
+scripts/.tmp-*
+scripts/diagnose-*-out.json
+
 # vercel
 .vercel
 
