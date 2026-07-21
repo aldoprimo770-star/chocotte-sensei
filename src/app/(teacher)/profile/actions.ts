@@ -91,70 +91,74 @@ export async function saveTeacherProfileAction(
     skillLevelCount: data.skillLevels.length,
   });
 
-  // プロフィール本体 + カテゴリー + 地域をまとめて更新（トランザクション）
-  await getDb().$transaction(async (tx) => {
-    await tx.teacherProfile.update({
-      where: { id: profile.id },
-      data: {
-        displayName: data.displayName,
-        catchphrase: data.catchphrase ?? null,
-        bio: data.bio ?? null,
-        lessonContent: data.lessonContent ?? null,
-        profileImageUrl: data.profileImageUrl ?? null,
-        youtubeUrl: data.youtubeUrl ?? null,
-        websiteUrl: data.websiteUrl ?? null,
-        snsUrl: data.snsUrl ?? null,
-        phone: data.phone ?? null,
-        lineId: data.lineId ?? null,
-        gender: data.gender ?? null,
-        ageRange: data.ageRange ?? null,
-        teachingYears: data.teachingYears ?? null,
-        teachingMethods: teaching.teachingMethods,
-        // 旧単一カラム・isOnline を同期（検索互換）
-        teachingMethod: teaching.teachingMethod,
-        isOnline: teaching.isOnline,
-        priceMin: data.priceMin ?? null,
-        priceMax: data.priceMax ?? null,
-        targetAges: data.targetAges,
-        skillLevels: data.skillLevels,
-        isAcceptingStudents: data.isAcceptingStudents,
-        // 公開時のみ状態を更新（下書きは非公開のまま）
-        isPublic: mode === "publish",
-        status: mode === "publish" ? "APPROVED" : "DRAFT",
-        profileCompletion,
-      },
-    });
-
-    // カテゴリーは一旦削除して作り直す（差分管理より単純で安全）
-    await tx.teacherCategory.deleteMany({ where: { teacherId: profile.id } });
-    if (data.categoryIds.length > 0) {
-      await tx.teacherCategory.createMany({
-        data: data.categoryIds.map((categoryId) => ({
-          teacherId: profile.id,
-          categoryId,
-        })),
-      });
-    }
-
-    // 地域も同様に作り直す（市町村は任意）
-    await tx.teacherArea.deleteMany({ where: { teacherId: profile.id } });
-    if (validAreas.length > 0) {
-      await tx.teacherArea.createMany({
-        data: validAreas.map((area) => ({
-          teacherId: profile.id,
-          prefecture: area.prefecture,
-          city: area.city || null,
-        })),
-      });
-    }
+  // プロフィール本体 + カテゴリー + 地域を更新
+  // Cloudflare Workers + Prisma Accelerate では interactive $transaction が
+  // 失敗しやすいため、逐次実行する（部分失敗時は次リクエストで再保存可能）
+  await getDb().teacherProfile.update({
+    where: { id: profile.id },
+    data: {
+      displayName: data.displayName,
+      catchphrase: data.catchphrase ?? null,
+      bio: data.bio ?? null,
+      lessonContent: data.lessonContent ?? null,
+      profileImageUrl: data.profileImageUrl ?? null,
+      youtubeUrl: data.youtubeUrl ?? null,
+      websiteUrl: data.websiteUrl ?? null,
+      snsUrl: data.snsUrl ?? null,
+      phone: data.phone ?? null,
+      lineId: data.lineId ?? null,
+      gender: data.gender ?? null,
+      ageRange: data.ageRange ?? null,
+      teachingYears: data.teachingYears ?? null,
+      teachingMethods: teaching.teachingMethods,
+      // 旧単一カラム・isOnline を同期（検索互換）
+      teachingMethod: teaching.teachingMethod,
+      isOnline: teaching.isOnline,
+      priceMin: data.priceMin ?? null,
+      priceMax: data.priceMax ?? null,
+      targetAges: data.targetAges,
+      skillLevels: data.skillLevels,
+      isAcceptingStudents: data.isAcceptingStudents,
+      // 公開時のみ状態を更新（下書きは非公開のまま）
+      isPublic: mode === "publish",
+      status: mode === "publish" ? "APPROVED" : "DRAFT",
+      profileCompletion,
+    },
   });
 
+  // カテゴリーは一旦削除して作り直す（差分管理より単純で安全）
+  await getDb().teacherCategory.deleteMany({ where: { teacherId: profile.id } });
+  if (data.categoryIds.length > 0) {
+    await getDb().teacherCategory.createMany({
+      data: data.categoryIds.map((categoryId) => ({
+        teacherId: profile.id,
+        categoryId,
+      })),
+    });
+  }
+
+  // 地域も同様に作り直す（市町村は任意）
+  await getDb().teacherArea.deleteMany({ where: { teacherId: profile.id } });
+  if (validAreas.length > 0) {
+    await getDb().teacherArea.createMany({
+      data: validAreas.map((area) => ({
+        teacherId: profile.id,
+        prefecture: area.prefecture,
+        city: area.city || null,
+      })),
+    });
+  }
+
   // 関連ページのキャッシュを更新（公開プロフィール含む）
-  revalidatePath("/dashboard");
-  revalidatePath("/profile");
-  revalidatePath("/profile/preview");
-  revalidatePath("/teachers");
-  revalidatePath(`/teachers/${profile.slug}`);
+  try {
+    revalidatePath("/dashboard");
+    revalidatePath("/profile");
+    revalidatePath("/profile/preview");
+    revalidatePath("/teachers");
+    revalidatePath(`/teachers/${profile.slug}`);
+  } catch (error) {
+    console.error("[saveTeacherProfile] revalidatePath failed", error);
+  }
 
   return { success: true };
 }
