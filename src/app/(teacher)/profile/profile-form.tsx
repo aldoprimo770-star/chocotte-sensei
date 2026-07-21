@@ -60,7 +60,7 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
   const [savingMode, setSavingMode] = useState<SaveMode | null>(null);
 
   // 入力型(Input) と 変換後の型(Values) を明示。
-  // resolver は検証のみに使い、送信時は生の入力値(getValues)をサーバーへ渡す。
+  // handleSubmit の検証済み data（Values）を Server Action に渡す。
   const {
     register,
     control,

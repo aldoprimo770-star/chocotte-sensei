@@ -9,8 +9,6 @@ import {
   type UploadProfileImageResult,
 } from "@/lib/r2/upload-profile-image";
 
-export type { UploadProfileImageResult };
-
 /**
  * 先生プロフィール画像を Cloudflare R2 にアップロードし、
  * TeacherProfile.profileImageUrl を自動更新します。
