@@ -9,6 +9,7 @@ import {
   type TeacherProfileFormInput,
 } from "@/schemas/teacher.schema";
 import { calculateProfileCompletion } from "@/lib/teacher/profile-completion";
+import { normalizeProfileFormValues } from "@/lib/teacher/normalize-profile-form";
 import { prepareTeachingMethodsForSave } from "@/lib/teacher/teaching-methods";
 import type { FormActionResult } from "@/types/action";
 
@@ -37,18 +38,21 @@ export async function saveTeacherProfileAction(
   // 対象プロフィールを取得
   const profile = await getDb().teacherProfile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true },
+    select: { id: true, slug: true },
   });
   if (!profile) {
     return { success: false, error: "プロフィールが見つかりません" };
   }
+
+  // チェックボックスの型ゆれを吸収してから検証
+  const normalizedInput = normalizeProfileFormValues(input);
 
   // モードに応じたスキーマで検証
   const schema =
     mode === "publish"
       ? teacherProfilePublishSchema
       : teacherProfileDraftSchema;
-  const parsed = schema.safeParse(input);
+  const parsed = schema.safeParse(normalizedInput);
 
   if (!parsed.success) {
     // Zodのエラーをフィールド単位に整形
@@ -146,10 +150,12 @@ export async function saveTeacherProfileAction(
     }
   });
 
-  // 関連ページのキャッシュを更新
+  // 関連ページのキャッシュを更新（公開プロフィール含む）
   revalidatePath("/dashboard");
   revalidatePath("/profile");
   revalidatePath("/profile/preview");
+  revalidatePath("/teachers");
+  revalidatePath(`/teachers/${profile.slug}`);
 
   return { success: true };
 }

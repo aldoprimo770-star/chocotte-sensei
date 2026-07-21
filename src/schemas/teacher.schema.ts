@@ -73,6 +73,29 @@ const optionalEnum = <T extends z.ZodTypeAny>(schema: T) =>
     .union([schema, z.literal("")])
     .transform((v) => (v === "" ? undefined : v));
 
+/**
+ * チェックボックス群の正規化。
+ * react-hook-form は「1つだけ選択」時に string、「未選択」時に undefined/false
+ * を返すため、常に配列へ揃えてから検証する。
+ */
+function checkboxArray<T extends z.ZodTypeAny>(itemSchema: T) {
+  return z.preprocess((val) => {
+    if (val == null || val === false || val === "") return [];
+    if (Array.isArray(val)) return val;
+    return [val];
+  }, z.array(itemSchema));
+}
+
+/**
+ * 単一チェックボックスの正規化。
+ * 未チェック時の undefined を false にする（.default(true) だと OFF にできない）。
+ */
+const checkboxBoolean = z.preprocess((val) => {
+  if (typeof val === "boolean") return val;
+  if (val === "true" || val === "on" || val === 1 || val === "1") return true;
+  return false;
+}, z.boolean());
+
 /** フォーム共通の base スキーマ（形式チェック） */
 export const teacherProfileBaseSchema = z.object({
   displayName: z
@@ -121,23 +144,21 @@ export const teacherProfileBaseSchema = z.object({
   ageRange: optionalEnum(z.nativeEnum(AgeRange)),
   teachingYears: optionalTeachingYears,
   /** 指導方法（複数選択: 対面 / オンライン / 電話） */
-  teachingMethods: z
-    .array(z.enum(["IN_PERSON", "ONLINE", "PHONE"]))
-    .default([]),
+  teachingMethods: checkboxArray(z.enum(["IN_PERSON", "ONLINE", "PHONE"])),
 
   priceMin: optionalPrice,
   priceMax: optionalPrice,
 
-  targetAges: z.array(z.nativeEnum(TargetAge)).default([]),
-  skillLevels: z.array(z.nativeEnum(SkillLevel)).default([]),
-  categoryIds: z.array(z.string()).default([]),
+  targetAges: checkboxArray(z.nativeEnum(TargetAge)),
+  skillLevels: checkboxArray(z.nativeEnum(SkillLevel)),
+  categoryIds: checkboxArray(z.string()),
   /** 対応地域（都道府県 + 市町村）。空の市町村は都道府県全域を意味する */
   areas: z
     .array(areaRowSchema)
     .default([])
     .transform((rows) => rows.filter((a) => a.prefecture !== "")),
 
-  isAcceptingStudents: z.boolean().default(true),
+  isAcceptingStudents: checkboxBoolean,
 });
 
 /** 正規化後のデータ型 */

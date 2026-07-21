@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
@@ -15,6 +15,7 @@ import {
   type SaveMode,
 } from "@/app/(teacher)/profile/actions";
 import { calculateProfileCompletion } from "@/lib/teacher/profile-completion";
+import { normalizeProfileFormValues } from "@/lib/teacher/normalize-profile-form";
 import {
   AGE_RANGE_OPTIONS,
   GENDER_OPTIONS,
@@ -51,10 +52,12 @@ interface ProfileFormProps {
  */
 export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
   const router = useRouter();
+  const messageRef = useRef<HTMLParagraphElement>(null);
   const [formMessage, setFormMessage] = useState<{
     type: "error" | "success";
     text: string;
   } | null>(null);
+  const [savingMode, setSavingMode] = useState<SaveMode | null>(null);
 
   // 入力型(Input) と 変換後の型(Values) を明示。
   // resolver は検証のみに使い、送信時は生の入力値(getValues)をサーバーへ渡す。
@@ -68,7 +71,7 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
     formState: { errors, isSubmitting },
   } = useForm<TeacherProfileFormInput, unknown, TeacherProfileFormValues>({
     resolver: zodResolver(teacherProfileDraftSchema),
-    defaultValues,
+    defaultValues: normalizeProfileFormValues(defaultValues),
   });
 
   // 入力状況に応じて完成率をリアルタイム計算
@@ -84,63 +87,108 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
       typeof values.priceMin === "string" && values.priceMin.trim() !== ""
         ? Number(values.priceMin)
         : null,
-    isOnline: teachingMethodsIncludeOnline(values.teachingMethods ?? []),
-    categoryCount: values.categoryIds?.length ?? 0,
+    isOnline: teachingMethodsIncludeOnline(
+      Array.isArray(values.teachingMethods) ? values.teachingMethods : [],
+    ),
+    categoryCount: Array.isArray(values.categoryIds)
+      ? values.categoryIds.length
+      : 0,
     areaCount: filledAreas.length,
-    targetAgeCount: values.targetAges?.length ?? 0,
-    skillLevelCount: values.skillLevels?.length ?? 0,
+    targetAgeCount: Array.isArray(values.targetAges)
+      ? values.targetAges.length
+      : 0,
+    skillLevelCount: Array.isArray(values.skillLevels)
+      ? values.skillLevels.length
+      : 0,
   });
 
-  async function submit(mode: SaveMode) {
-    setFormMessage(null);
-    // getValues() は変換前の生の入力値を返す。
-    // サーバー側で改めて検証・変換するため、ここでは生値をそのまま送る。
-    const raw = getValues();
-    const result = await saveTeacherProfileAction(raw, mode);
-
-    if (result.success) {
-      setFormMessage({
-        type: "success",
-        text:
-          mode === "publish"
-            ? "プロフィールを公開しました"
-            : "下書きを保存しました",
-      });
-      router.refresh();
-      return;
-    }
-
-    // サーバーからのフィールドエラーを各入力に反映
-    if (result.fieldErrors) {
-      for (const [field, message] of Object.entries(result.fieldErrors)) {
-        setError(field as keyof TeacherProfileFormInput, { message });
-      }
-    }
-    setFormMessage({
-      type: "error",
-      text: result.error ?? "保存に失敗しました",
+  function showMessage(message: { type: "error" | "success"; text: string }) {
+    setFormMessage(message);
+    // 成功/失敗を画面上部で確実に見せる
+    requestAnimationFrame(() => {
+      messageRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   }
 
+  async function submit(mode: SaveMode) {
+    setSavingMode(mode);
+    setFormMessage(null);
+    try {
+      // getValues() は変換前の生の入力値を返す。
+      // チェックボックスの型ゆれを吸収してから Server Action へ送る。
+      const raw = normalizeProfileFormValues(getValues());
+      const result = await saveTeacherProfileAction(raw, mode);
+
+      if (result.success) {
+        showMessage({
+          type: "success",
+          text:
+            mode === "publish"
+              ? "プロフィールを公開しました"
+              : "下書きを保存しました",
+        });
+        router.refresh();
+        return;
+      }
+
+      // サーバーからのフィールドエラーを各入力に反映
+      if (result.fieldErrors) {
+        for (const [field, message] of Object.entries(result.fieldErrors)) {
+          setError(field as keyof TeacherProfileFormInput, { message });
+        }
+      }
+      showMessage({
+        type: "error",
+        text: result.error ?? "保存に失敗しました",
+      });
+    } catch {
+      showMessage({
+        type: "error",
+        text: "保存中にエラーが発生しました。時間をおいて再度お試しください。",
+      });
+    } finally {
+      setSavingMode(null);
+    }
+  }
+
   // handleSubmit はクライアント検証の実行に使い、実際の値は submit 内で取得する
-  const onSaveDraft = handleSubmit(() => submit("draft"));
-  const onPublish = handleSubmit(() => submit("publish"));
+  const onSaveDraft = handleSubmit(
+    () => submit("draft"),
+    () =>
+      showMessage({
+        type: "error",
+        text: "入力内容を確認してください",
+      }),
+  );
+  const onPublish = handleSubmit(
+    () => submit("publish"),
+    () =>
+      showMessage({
+        type: "error",
+        text: "公開に必要な項目を確認してください",
+      }),
+  );
+
+  const busy = isSubmitting || savingMode !== null;
 
   return (
     <form className="space-y-8" noValidate>
       {/* フォーム全体メッセージ */}
-      {formMessage && (
-        <p
-          role="alert"
-          className={
-            formMessage.type === "error"
-              ? "rounded-xl bg-accent-light px-4 py-3 text-sm text-accent"
-              : "rounded-xl bg-primary-light px-4 py-3 text-sm text-primary"
-          }
-        >
-          {formMessage.text}
-        </p>
-      )}
+      <div aria-live="polite">
+        {formMessage && (
+          <p
+            ref={messageRef}
+            role="alert"
+            className={
+              formMessage.type === "error"
+                ? "rounded-xl bg-accent-light px-4 py-3 text-sm text-accent"
+                : "rounded-xl bg-primary-light px-4 py-3 text-sm text-primary"
+            }
+          >
+            {formMessage.text}
+          </p>
+        )}
+      </div>
 
       {/* 完成率 */}
       <Card>
@@ -161,7 +209,7 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
                 value={field.value ?? ""}
                 onChange={field.onChange}
                 fieldError={errors.profileImageUrl?.message}
-                disabled={isSubmitting}
+                disabled={busy}
               />
             )}
           />
@@ -345,32 +393,60 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
           {/* カテゴリー */}
           <div>
             <Label>カテゴリー（複数選択可）</Label>
-            <div className="flex flex-wrap gap-2">
-              {categories.map((category) => (
-                <Checkbox
-                  key={category.id}
-                  label={category.name}
-                  value={category.id}
-                  {...register("categoryIds")}
-                />
-              ))}
-            </div>
+            <Controller
+              name="categoryIds"
+              control={control}
+              render={({ field }) => {
+                const selected = Array.isArray(field.value) ? field.value : [];
+                return (
+                  <div className="flex flex-wrap gap-2">
+                    {categories.map((category) => (
+                      <Checkbox
+                        key={category.id}
+                        label={category.name}
+                        checked={selected.includes(category.id)}
+                        onChange={(e) => {
+                          const next = new Set(selected);
+                          if (e.target.checked) next.add(category.id);
+                          else next.delete(category.id);
+                          field.onChange([...next]);
+                        }}
+                      />
+                    ))}
+                  </div>
+                );
+              }}
+            />
             <InputErrorMessage message={errors.categoryIds?.message} />
           </div>
 
           {/* 指導方法（複数選択） */}
           <div>
             <Label>指導方法（複数選択可）</Label>
-            <div className="flex flex-wrap gap-2">
-              {TEACHING_METHOD_OPTIONS.map((option) => (
-                <Checkbox
-                  key={option.value}
-                  label={`${option.emoji} ${option.label}`}
-                  value={option.value}
-                  {...register("teachingMethods")}
-                />
-              ))}
-            </div>
+            <Controller
+              name="teachingMethods"
+              control={control}
+              render={({ field }) => {
+                const selected = Array.isArray(field.value) ? field.value : [];
+                return (
+                  <div className="flex flex-wrap gap-2">
+                    {TEACHING_METHOD_OPTIONS.map((option) => (
+                      <Checkbox
+                        key={option.value}
+                        label={`${option.emoji} ${option.label}`}
+                        checked={selected.includes(option.value)}
+                        onChange={(e) => {
+                          const next = new Set(selected);
+                          if (e.target.checked) next.add(option.value);
+                          else next.delete(option.value);
+                          field.onChange([...next]);
+                        }}
+                      />
+                    ))}
+                  </div>
+                );
+              }}
+            />
             <InputErrorMessage message={errors.teachingMethods?.message} />
           </div>
 
@@ -387,7 +463,7 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
                 <AreaFieldsEditor
                   value={field.value ?? []}
                   onChange={field.onChange}
-                  disabled={isSubmitting}
+                  disabled={busy}
                 />
               )}
             />
@@ -425,32 +501,60 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
           {/* 指導対象 */}
           <div>
             <Label>指導対象（複数選択可）</Label>
-            <div className="flex flex-wrap gap-2">
-              {TARGET_AGE_OPTIONS.map((option) => (
-                <Checkbox
-                  key={option.value}
-                  label={option.label}
-                  value={option.value}
-                  {...register("targetAges")}
-                />
-              ))}
-            </div>
+            <Controller
+              name="targetAges"
+              control={control}
+              render={({ field }) => {
+                const selected = Array.isArray(field.value) ? field.value : [];
+                return (
+                  <div className="flex flex-wrap gap-2">
+                    {TARGET_AGE_OPTIONS.map((option) => (
+                      <Checkbox
+                        key={option.value}
+                        label={option.label}
+                        checked={selected.includes(option.value)}
+                        onChange={(e) => {
+                          const next = new Set(selected);
+                          if (e.target.checked) next.add(option.value);
+                          else next.delete(option.value);
+                          field.onChange([...next]);
+                        }}
+                      />
+                    ))}
+                  </div>
+                );
+              }}
+            />
             <InputErrorMessage message={errors.targetAges?.message} />
           </div>
 
           {/* 対応レベル */}
           <div>
             <Label>対応レベル（複数選択可）</Label>
-            <div className="flex flex-wrap gap-2">
-              {SKILL_LEVEL_OPTIONS.map((option) => (
-                <Checkbox
-                  key={option.value}
-                  label={option.label}
-                  value={option.value}
-                  {...register("skillLevels")}
-                />
-              ))}
-            </div>
+            <Controller
+              name="skillLevels"
+              control={control}
+              render={({ field }) => {
+                const selected = Array.isArray(field.value) ? field.value : [];
+                return (
+                  <div className="flex flex-wrap gap-2">
+                    {SKILL_LEVEL_OPTIONS.map((option) => (
+                      <Checkbox
+                        key={option.value}
+                        label={option.label}
+                        checked={selected.includes(option.value)}
+                        onChange={(e) => {
+                          const next = new Set(selected);
+                          if (e.target.checked) next.add(option.value);
+                          else next.delete(option.value);
+                          field.onChange([...next]);
+                        }}
+                      />
+                    ))}
+                  </div>
+                );
+              }}
+            />
             <InputErrorMessage message={errors.skillLevels?.message} />
           </div>
         </div>
@@ -462,9 +566,16 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
           <CardTitle>公開設定</CardTitle>
         </CardHeader>
         <div className="space-y-4">
-          <Checkbox
-            label="現在、新規の生徒を受け付ける"
-            {...register("isAcceptingStudents")}
+          <Controller
+            name="isAcceptingStudents"
+            control={control}
+            render={({ field }) => (
+              <Checkbox
+                label="現在、新規の生徒を受け付ける"
+                checked={field.value === true}
+                onChange={(e) => field.onChange(e.target.checked)}
+              />
+            )}
           />
         </div>
       </Card>
@@ -475,17 +586,17 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
           type="button"
           variant="outline"
           onClick={onSaveDraft}
-          disabled={isSubmitting}
+          disabled={busy}
         >
-          下書き保存
+          {savingMode === "draft" ? "保存中..." : "下書き保存"}
         </Button>
         <Button
           type="button"
           variant="primary"
           onClick={onPublish}
-          disabled={isSubmitting}
+          disabled={busy}
         >
-          公開する
+          {savingMode === "publish" ? "公開中..." : "公開する"}
         </Button>
         <Link
           href="/profile/preview"
