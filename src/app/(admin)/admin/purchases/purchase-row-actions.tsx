@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import type { PaymentMethod, PurchaseStatus } from "@prisma/client";
+import type { PurchaseStatus } from "@prisma/client";
 import {
   confirmPurchasePaymentAction,
   revealPurchaseContactAction,
@@ -11,12 +11,10 @@ import {
 export function PurchaseRowActions({
   purchaseId,
   status,
-  paymentMethod,
   contactRevealed,
 }: {
   purchaseId: string;
   status: PurchaseStatus;
-  paymentMethod: PaymentMethod;
   contactRevealed: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
@@ -27,11 +25,9 @@ export function PurchaseRowActions({
     });
   }
 
-  // 銀行振込かつ未完了 → 入金確認が必要
   const needsConfirmation =
-    paymentMethod === "BANK_TRANSFER" && status === "PENDING";
-  // 完了済みだが開示フラグ未設定 → 手動公開が可能
-  const canReveal = status === "COMPLETED" && !contactRevealed;
+    status === "PAYMENT_REPORTED" || status === "PENDING_PAYMENT";
+  const canReveal = status === "PAID" && !contactRevealed;
 
   if (!needsConfirmation && !canReveal) {
     return <span className="text-xs text-gray-400">操作なし</span>;
@@ -43,10 +39,19 @@ export function PurchaseRowActions({
         <button
           type="button"
           disabled={isPending}
-          onClick={() => run(() => confirmPurchasePaymentAction(purchaseId))}
+          onClick={() => {
+            if (
+              !window.confirm(
+                "銀行口座への入金を確認しましたか？「入金確認済み」にすると生徒に連絡先が表示されます。",
+              )
+            ) {
+              return;
+            }
+            run(() => confirmPurchasePaymentAction(purchaseId));
+          }}
           className="rounded-lg border border-primary bg-primary px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
         >
-          入金確認
+          入金確認済みにする
         </button>
       )}
       {canReveal && (

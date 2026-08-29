@@ -120,7 +120,8 @@ export async function rejectTeacherAction(
 }
 
 /**
- * 銀行振込の入金を確認し、購入を完了にする。
+ * 銀行振込の入金を確認し、購入を PAID にする。
+ * 管理者のみ実行可能。生徒・先生は絶対に呼び出せない（requireRole("ADMIN")）。
  * 完了と同時に連絡先を開示（contactRevealedAt を記録）します。
  */
 export async function confirmPurchasePaymentAction(
@@ -129,10 +130,41 @@ export async function confirmPurchasePaymentAction(
   const session = await requireRole("ADMIN");
 
   try {
+    const existing = await getDb().purchase.findUnique({
+      where: { id: purchaseId },
+      select: {
+        id: true,
+        status: true,
+        amount: true,
+        studentId: true,
+        teacherId: true,
+        student: { select: { email: true } },
+        teacher: { select: { displayName: true } },
+      },
+    });
+
+    if (!existing) {
+      return { success: false, error: "購入が見つかりません。" };
+    }
+
+    if (existing.status === "PAID") {
+      return { success: true };
+    }
+
+    if (
+      existing.status !== "PAYMENT_REPORTED" &&
+      existing.status !== "PENDING_PAYMENT"
+    ) {
+      return {
+        success: false,
+        error: "このステータスでは入金確認できません。",
+      };
+    }
+
     const purchase = await getDb().purchase.update({
       where: { id: purchaseId },
       data: {
-        status: "COMPLETED",
+        status: "PAID",
         confirmedAt: new Date(),
         confirmedBy: session.user.id,
         contactRevealedAt: new Date(),
@@ -148,8 +180,24 @@ export async function confirmPurchasePaymentAction(
       purchase.teacherId,
     );
 
+    // 生徒へ通知（失敗しても入金確認自体は成功扱い）
+    try {
+      const { sendPaymentConfirmedStudentNotification } = await import(
+        "@/lib/email/purchase-email"
+      );
+      await sendPaymentConfirmedStudentNotification(existing.student.email, {
+        teacherName: existing.teacher.displayName,
+        amount: existing.amount,
+        purchaseId: existing.id,
+      });
+    } catch (err) {
+      console.error("[purchase] student notification failed", err);
+    }
+
     revalidatePath("/admin/purchases");
     revalidatePath("/admin");
+    revalidatePath(`/mypage/purchases/${purchaseId}`);
+    revalidatePath("/mypage/purchases");
     revalidatePath("/mypage/consultations");
     return { success: true };
   } catch {
@@ -158,7 +206,7 @@ export async function confirmPurchasePaymentAction(
 }
 
 /**
- * 連絡先を開示済みとしてマークする（COMPLETED の購入のみ対象）。
+ * 連絡先を開示済みとしてマークする（PAID の購入のみ対象）。
  * 通常は入金確認時に自動で開示されるため、補助的な操作です。
  */
 export async function revealPurchaseContactAction(
@@ -171,10 +219,10 @@ export async function revealPurchaseContactAction(
       where: { id: purchaseId },
       select: { status: true },
     });
-    if (!purchase || purchase.status !== "COMPLETED") {
+    if (!purchase || purchase.status !== "PAID") {
       return {
         success: false,
-        error: "完了済みの購入のみ連絡先を公開できます。",
+        error: "入金確認済みの購入のみ連絡先を公開できます。",
       };
     }
     await getDb().purchase.update({
@@ -848,5 +896,39 @@ export async function updateReportStatusAction(input: {
     return { success: true };
   } catch {
     return { success: false, error: "通報の更新に失敗しました。" };
+  }
+}
+
+/** 振込先口座情報を保存する（管理者専用） */
+export async function saveBankAccountAction(input: {
+  bankName: string;
+  branchName: string;
+  accountType: string;
+  accountNumber: string;
+  accountHolder: string;
+  remitterNote: string;
+}): Promise<FormActionResult> {
+  await requireRole("ADMIN");
+
+  if (
+    !input.bankName.trim() ||
+    !input.branchName.trim() ||
+    !input.accountType.trim() ||
+    !input.accountNumber.trim() ||
+    !input.accountHolder.trim()
+  ) {
+    return { success: false, error: "必須項目を入力してください。" };
+  }
+
+  try {
+    const { saveBankAccountInfo } = await import(
+      "@/lib/settings/bank-account"
+    );
+    await saveBankAccountInfo(input);
+    revalidatePath("/admin/bank-account");
+    revalidatePath("/admin/purchases");
+    return { success: true };
+  } catch {
+    return { success: false, error: "口座情報の保存に失敗しました。" };
   }
 }

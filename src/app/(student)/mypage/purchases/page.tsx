@@ -63,10 +63,10 @@ export default async function PurchasesPage() {
 
                   <Button
                     href={`/mypage/purchases/${purchase.id}`}
-                    variant={purchase.status === "COMPLETED" ? "primary" : "outline"}
+                    variant={purchase.status === "PAID" ? "primary" : "outline"}
                     size="sm"
                   >
-                    {purchase.status === "COMPLETED" ? "連絡先を見る" : "詳細"}
+                    {purchase.status === "PAID" ? "連絡先を見る" : "詳細"}
                   </Button>
                 </Card>
               </li>

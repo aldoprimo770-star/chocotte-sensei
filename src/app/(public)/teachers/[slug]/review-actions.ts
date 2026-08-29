@@ -12,7 +12,7 @@ import type { FormActionResult } from "@/types/action";
  *
  * セキュリティ：
  *  - STUDENT ロード本人のみ
- *  - 対象先生の連絡先を「購入完了(COMPLETED)」している生徒のみ
+ *  - 対象先生の連絡先を「購入完了(PAID)」している生徒のみ
  *  - 1生徒1先生1件（teacherId_studentId が unique）→ upsert で扱う
  *  - 編集時は status を PENDING に戻し、再審査する
  */
@@ -34,7 +34,7 @@ export async function submitReviewAction(
 
   // 購入完了していない生徒はレビュー不可
   const purchased = await getDb().purchase.findFirst({
-    where: { studentId, teacherId: teacher.id, status: "COMPLETED" },
+    where: { studentId, teacherId: teacher.id, status: "PAID" },
     select: { id: true },
   });
   if (!purchased) {

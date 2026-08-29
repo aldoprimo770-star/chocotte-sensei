@@ -63,7 +63,7 @@ export async function getAdminStats(): Promise<AdminStats> {
     getDb().teacherProfile.count({ where: { isPublic: true, status: "APPROVED" } }),
     getDb().teacherProfile.count({ where: { status: "PENDING" } }),
     getDb().inquiry.count(),
-    getDb().purchase.count({ where: { status: "COMPLETED" } }),
+    getDb().purchase.count({ where: { status: "PAID" } }),
     getDb().identityVerification.count({ where: { status: "PENDING" } }),
     getDb().review.count({ where: { status: "PENDING" } }),
     getDb().user.count({ where: { createdAt: { gte: startOfToday } } }),

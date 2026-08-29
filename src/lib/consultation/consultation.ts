@@ -36,7 +36,7 @@ export async function hasCompletedContactPurchase(
     where: {
       studentId: studentUserId,
       teacherId: teacherProfileId,
-      status: "COMPLETED",
+      status: "PAID",
     },
     select: { id: true },
   });

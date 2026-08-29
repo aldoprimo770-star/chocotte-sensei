@@ -8,7 +8,11 @@ export type ContactCtaState =
   | { kind: "not-student" }
   | { kind: "buy" }
   | { kind: "owned"; purchaseId: string }
-  | { kind: "pending"; purchaseId: string };
+  | {
+      kind: "pending";
+      purchaseId: string;
+      status?: "PENDING_PAYMENT" | "PAYMENT_REPORTED";
+    };
 
 /**
  * 連絡先購入カード（公開プロフィールページ用）
@@ -64,7 +68,9 @@ export function ContactPurchaseCard({
       ) : state.kind === "pending" ? (
         <>
           <p className="mb-4 text-sm text-foreground">
-            お申し込みを受け付けました。現在入金確認中です。
+            {state.status === "PAYMENT_REPORTED"
+              ? "振込報告済みです。運営の入金確認後に連絡先が表示されます。"
+              : "振込手続き中です。振込後に「振込しました」を報告してください。"}
           </p>
           <Button href={`/mypage/purchases/${state.purchaseId}`} variant="outline">
             購入状況を見る

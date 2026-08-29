@@ -47,7 +47,7 @@ export default async function StudentConsultationDetailPage({
     conversation.teacherId,
   );
   const purchaseUrl =
-    activePurchase?.status === "COMPLETED"
+    activePurchase?.status === "PAID"
       ? `/mypage/purchases/${activePurchase.id}`
       : `/teachers/${conversation.teacher.slug}/purchase`;
 

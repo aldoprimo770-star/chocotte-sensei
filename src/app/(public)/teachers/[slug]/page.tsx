@@ -222,7 +222,7 @@ async function ReviewSection({
       getActivePurchase(session.user.id, teacherId),
       getStudentReviewForTeacher(session.user.id, teacherId),
     ]);
-    const purchased = active?.status === "COMPLETED";
+    const purchased = active?.status === "PAID";
 
     if (purchased) {
       formArea = (
@@ -300,7 +300,18 @@ async function resolveContactState(
   if (!active) {
     return { kind: "buy" };
   }
-  return active.status === "COMPLETED"
-    ? { kind: "owned", purchaseId: active.id }
-    : { kind: "pending", purchaseId: active.id };
+  if (active.status === "PAID") {
+    return { kind: "owned", purchaseId: active.id };
+  }
+  if (
+    active.status === "PENDING_PAYMENT" ||
+    active.status === "PAYMENT_REPORTED"
+  ) {
+    return {
+      kind: "pending",
+      purchaseId: active.id,
+      status: active.status,
+    };
+  }
+  return { kind: "buy" };
 }

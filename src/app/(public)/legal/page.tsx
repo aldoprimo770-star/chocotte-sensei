@@ -23,7 +23,7 @@ const ITEMS: readonly { label: string; value: string }[] = [
     value: `先生の連絡先閲覧：1名につき${SITE.contactPrice.toLocaleString()}円（税込）`,
   },
   { label: "商品代金以外の必要料金", value: "インターネット接続に係る通信料等" },
-  { label: "支払方法", value: "PayPal・銀行振込（順次対応）" },
+  { label: "支払方法", value: "銀行振込" },
   { label: "支払時期", value: "各決済手段所定のタイミングでのお支払い" },
   {
     label: "サービス提供時期",

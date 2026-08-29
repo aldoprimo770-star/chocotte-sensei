@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 /**
  * 購入済みの連絡先表示（サーバーコンポーネント・表示専用）
  *
- * 呼び出し側で「購入が COMPLETED かつ本人」であることを確認した上で
+ * 呼び出し側で「購入が PAID かつ本人」であることを確認した上で
  * レンダリングしてください。
  */
 export function ContactDetails({

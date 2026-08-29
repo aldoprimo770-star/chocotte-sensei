@@ -90,16 +90,16 @@ enum ReviewStatus {
 
 /// 決済方法
 enum PaymentMethod {
-  PAYPAL // PayPal（即時反映）
-  BANK_TRANSFER // 銀行振込（管理者確認後に開放）
+  PAYPAL // 旧方式（履歴互換用・新規購入では未使用）
+  BANK_TRANSFER // 銀行振込（管理者入金確認後に開放）
 }
 
 /// 連絡先購入のステータス
 enum PurchaseStatus {
-  PENDING // 未完了（振込待ちなど）
-  COMPLETED // 完了（連絡先開放済み）
-  FAILED // 失敗
-  REFUNDED // 返金
+  PENDING_PAYMENT // 購入手続き開始・振込報告前
+  PAYMENT_REPORTED // 生徒が振込報告済み・管理者の入金確認待ち
+  PAID // 管理者が入金確認済み（連絡先開示可）
+  CANCELLED // キャンセル
 }
 
 /// お問い合わせの対応ステータス
@@ -468,23 +468,27 @@ model RecentlyViewed {
 // 決済（連絡先購入）
 // ============================================================
 
-/// 連絡先購入（先生1名につき固定料金）
+/// 連絡先購入（先生1名につき固定料金・銀行振込）
 model Purchase {
   id                String         @id @default(cuid())
   studentId         String         @map("student_id")
   teacherId         String         @map("teacher_id")
   amount            Int // 支払い金額（円）
-  paymentMethod     PaymentMethod  @map("payment_method")
-  status            PurchaseStatus @default(PENDING)
+  paymentMethod     PaymentMethod  @default(BANK_TRANSFER) @map("payment_method")
+  status            PurchaseStatus @default(PENDING_PAYMENT)
   contactRevealedAt DateTime?      @map("contact_revealed_at") // 連絡先を開放した日時
 
-  // PayPal 用フィールド
+  // 旧 PayPal 用（履歴互換・新規では未使用）
   paypalOrderId String? @map("paypal_order_id")
 
-  // 銀行振込 用フィールド
-  bankTransferName String?   @map("bank_transfer_name") // 振込名義
-  confirmedAt      DateTime? @map("confirmed_at") // 管理者が入金確認した日時
-  confirmedBy      String?   @map("confirmed_by") // 確認した管理者のユーザーID
+  // 銀行振込
+  bankTransferName  String?   @map("bank_transfer_name") // 実際の振込名義
+  transferDate      DateTime? @map("transfer_date") // 振込日（生徒申告）
+  studentMemo       String?   @map("student_memo") @db.Text // 生徒メモ
+  adminMemo         String?   @map("admin_memo") @db.Text // 管理用メモ
+  paymentReportedAt DateTime? @map("payment_reported_at") // 「振込しました」押下日時
+  confirmedAt       DateTime? @map("confirmed_at") // 管理者が入金確認した日時
+  confirmedBy       String?   @map("confirmed_by") // 確認した管理者のユーザーID
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

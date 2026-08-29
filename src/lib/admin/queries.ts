@@ -94,10 +94,9 @@ export type AdminPurchaseRow = Awaited<
   ReturnType<typeof getAdminPurchases>
 >[number];
 
-/** 連絡先購入の一覧を取得（新しい順・購入者/先生情報付き） */
+/** 連絡先購入の一覧を取得（入金確認待ちを優先・購入者/先生情報付き） */
 export async function getAdminPurchases() {
-  return getDb().purchase.findMany({
-    orderBy: { createdAt: "desc" },
+  const rows = await getDb().purchase.findMany({
     take: ADMIN_LIST_LIMIT,
     select: {
       id: true,
@@ -105,6 +104,11 @@ export async function getAdminPurchases() {
       paymentMethod: true,
       amount: true,
       bankTransferName: true,
+      transferDate: true,
+      studentMemo: true,
+      adminMemo: true,
+      paymentReportedAt: true,
+      confirmedAt: true,
       contactRevealedAt: true,
       createdAt: true,
       student: {
@@ -115,6 +119,20 @@ export async function getAdminPurchases() {
       },
       teacher: { select: { displayName: true, slug: true } },
     },
+  });
+
+  // PAYMENT_REPORTED を先頭、その後 PENDING_PAYMENT、その他は新しい順
+  const rank = (status: string) => {
+    if (status === "PAYMENT_REPORTED") return 0;
+    if (status === "PENDING_PAYMENT") return 1;
+    if (status === "PAID") return 2;
+    return 3;
+  };
+
+  return rows.sort((a, b) => {
+    const r = rank(a.status) - rank(b.status);
+    if (r !== 0) return r;
+    return b.createdAt.getTime() - a.createdAt.getTime();
   });
 }
 

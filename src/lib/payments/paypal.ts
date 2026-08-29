@@ -1,14 +1,14 @@
 import { randomUUID } from "crypto";
 
 /**
- * PayPal 決済ゲートウェイ（本番移行しやすい薄い抽象化レイヤー）
+ * PayPal 決済ゲートウェイ（レガシー）
+ *
+ * 連絡先購入は銀行振込に移行済みです。生徒向け購入フローからは呼び出しません。
+ * 履歴互換・将来の管理者向けテスト用にモジュールのみ残しています。
  *
  * - 環境変数（PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET）が未設定の場合は
  *   「テストモード」として動作し、実際の通信なしに成功を返します。
  * - 設定済みの場合は PayPal REST API(v2 Orders) を呼び出します。
- *   PAYPAL_MODE=live で本番、それ以外は sandbox エンドポイントを使用します。
- *
- * 本番移行時は環境変数を設定するだけで、呼び出し側のコードは変更不要です。
  */
 
 const CLIENT_ID = process.env.PAYPAL_CLIENT_ID;

@@ -4,33 +4,13 @@ import { headers } from "next/headers";
 import { getDb } from "@/lib/db";
 import { contactSchema, type ContactInput } from "@/schemas/contact.schema";
 import type { FormActionResult } from "@/types/action";
+import { resolveAdminEmails } from "@/lib/admin/emails";
 import {
   sendContactAdminNotification,
   sendContactAutoReply,
 } from "@/lib/email/contact-email";
 import { verifyTurnstileToken } from "@/lib/turnstile/verify";
 import { TURNSTILE_ERROR_MESSAGE } from "@/constants/turnstile";
-
-/**
- * 管理者への通知先メールアドレスを決定する。
- * ADMIN_EMAIL（カンマ区切りで複数可）が設定されていればそれを優先し、
- * 無ければ DB の管理者ユーザーのメールアドレスを使う。
- */
-async function resolveAdminEmails(): Promise<string[]> {
-  const fromEnv = process.env.ADMIN_EMAIL?.trim();
-  if (fromEnv) {
-    return fromEnv
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-  }
-
-  const admins = await getDb().user.findMany({
-    where: { role: "ADMIN" },
-    select: { email: true },
-  });
-  return admins.map((a) => a.email);
-}
 
 /**
  * お問い合わせ受信時のメール送信（管理者通知 + 送信者への自動返信）。
