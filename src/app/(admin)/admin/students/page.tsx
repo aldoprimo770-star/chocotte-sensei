@@ -30,9 +30,11 @@ export default async function AdminStudentsPage() {
               <tr>
                 <th className="px-4 py-3 font-medium">表示名</th>
                 <th className="px-4 py-3 font-medium">メールアドレス</th>
+                <th className="sticky right-0 z-[1] bg-gray-50 px-4 py-3 font-medium shadow-[-4px_0_8px_rgba(0,0,0,0.04)]">
+                  操作
+                </th>
                 <th className="px-4 py-3 font-medium">登録日</th>
                 <th className="px-4 py-3 font-medium">最終ログイン</th>
-                <th className="px-4 py-3 font-medium">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -44,33 +46,18 @@ export default async function AdminStudentsPage() {
                   <td className="px-4 py-3 text-gray-600">
                     {student.user.email}
                   </td>
+                  <td className="sticky right-0 z-[1] bg-white px-4 py-3 shadow-[-4px_0_8px_rgba(0,0,0,0.04)]">
+                    <StudentRowActions
+                      studentProfileId={student.id}
+                      displayName={student.displayName}
+                      email={student.user.email}
+                    />
+                  </td>
                   <td className="px-4 py-3 whitespace-nowrap text-gray-600">
                     {formatDate(student.user.createdAt)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-gray-600">
                     {formatDateTime(student.user.lastLoginAt)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-                      <StudentRowActions
-                        studentProfileId={student.id}
-                        displayName={student.displayName}
-                        email={student.user.email}
-                      />
-                      <details className="group">
-                        <summary className="cursor-pointer list-none text-xs font-medium text-primary hover:underline">
-                          詳細
-                        </summary>
-                        <dl className="mt-2 space-y-1 text-xs text-gray-600">
-                          <div>
-                            <dt className="inline text-gray-500">都道府県：</dt>
-                            <dd className="inline">
-                              {student.prefecture ?? "未設定"}
-                            </dd>
-                          </div>
-                        </dl>
-                      </details>
-                    </div>
                   </td>
                 </tr>
               ))}

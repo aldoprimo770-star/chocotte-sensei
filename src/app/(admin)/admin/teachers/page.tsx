@@ -34,13 +34,15 @@ export default async function AdminTeachersPage() {
             <thead className="border-b border-gray-200 bg-gray-50 text-xs text-gray-500">
               <tr>
                 <th className="px-4 py-3 font-medium">先生</th>
+                <th className="sticky right-0 z-[1] bg-gray-50 px-4 py-3 font-medium shadow-[-4px_0_8px_rgba(0,0,0,0.04)]">
+                  操作
+                </th>
                 <th className="px-4 py-3 font-medium">カテゴリー</th>
                 <th className="px-4 py-3 font-medium">都道府県</th>
                 <th className="px-4 py-3 font-medium">公開</th>
                 <th className="px-4 py-3 font-medium">承認</th>
                 <th className="px-4 py-3 font-medium">本人確認</th>
                 <th className="px-4 py-3 font-medium">登録日</th>
-                <th className="px-4 py-3 font-medium">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -89,6 +91,15 @@ export default async function AdminTeachersPage() {
                           </Link>
                         </div>
                       </div>
+                    </td>
+                    <td className="sticky right-0 z-[1] bg-white px-4 py-3 shadow-[-4px_0_8px_rgba(0,0,0,0.04)]">
+                      <TeacherRowActions
+                        teacherId={teacher.id}
+                        displayName={teacher.displayName}
+                        email={teacher.user.email}
+                        isPublic={teacher.isPublic}
+                        status={teacher.status}
+                      />
                     </td>
                     <td className="px-4 py-3 text-gray-600">
                       {categoryNames || "—"}
@@ -155,15 +166,6 @@ export default async function AdminTeachersPage() {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-gray-600">
                       {formatDate(teacher.createdAt)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <TeacherRowActions
-                        teacherId={teacher.id}
-                        displayName={teacher.displayName}
-                        email={teacher.user.email}
-                        isPublic={teacher.isPublic}
-                        status={teacher.status}
-                      />
                     </td>
                   </tr>
                 );
