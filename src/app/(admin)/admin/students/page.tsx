@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { getAdminStudents } from "@/lib/admin/queries";
 import { formatDate, formatDateTime } from "@/lib/date";
+import { StudentRowActions } from "./student-row-actions";
 
 export const metadata: Metadata = { title: "生徒管理" };
 
-/** 生徒管理ページ（一覧） */
+/** 生徒管理ページ（一覧 + 削除） */
 export default async function AdminStudentsPage() {
   const students = await getAdminStudents();
 
@@ -14,6 +15,7 @@ export default async function AdminStudentsPage() {
         <h1 className="text-xl font-bold text-gray-800">生徒管理</h1>
         <p className="mt-1 text-sm text-gray-500">
           登録されている生徒の一覧です（新しい順・最大100件）。
+          「削除」はアカウントと関連データを完全に消します。
         </p>
       </div>
 
@@ -49,22 +51,26 @@ export default async function AdminStudentsPage() {
                     {formatDateTime(student.user.lastLoginAt)}
                   </td>
                   <td className="px-4 py-3">
-                    <details className="group">
-                      <summary className="cursor-pointer list-none text-xs font-medium text-primary hover:underline">
-                        詳細
-                      </summary>
-                      <dl className="mt-2 space-y-1 text-xs text-gray-600">
-                        <div>
-                          <dt className="inline text-gray-500">都道府県：</dt>
-                          <dd className="inline">
-                            {student.prefecture ?? "未設定"}
-                          </dd>
-                        </div>
-                        <p className="text-gray-400">
-                          ※生徒情報の編集機能は今後のアップデートで追加予定です。
-                        </p>
-                      </dl>
-                    </details>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                      <StudentRowActions
+                        studentProfileId={student.id}
+                        displayName={student.displayName}
+                        email={student.user.email}
+                      />
+                      <details className="group">
+                        <summary className="cursor-pointer list-none text-xs font-medium text-primary hover:underline">
+                          詳細
+                        </summary>
+                        <dl className="mt-2 space-y-1 text-xs text-gray-600">
+                          <div>
+                            <dt className="inline text-gray-500">都道府県：</dt>
+                            <dd className="inline">
+                              {student.prefecture ?? "未設定"}
+                            </dd>
+                          </div>
+                        </dl>
+                      </details>
+                    </div>
                   </td>
                 </tr>
               ))}

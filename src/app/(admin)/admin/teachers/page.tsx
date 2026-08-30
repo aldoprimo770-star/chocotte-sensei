@@ -22,6 +22,7 @@ export default async function AdminTeachersPage() {
         <p className="mt-1 text-sm text-gray-500">
           登録されている先生の一覧です（新しい順・最大100件）。
           本人確認画像の表示とステータス切替は管理者のみ可能です。
+          「削除」はアカウントと関連データを完全に消します。
         </p>
       </div>
 
@@ -76,6 +77,9 @@ export default async function AdminTeachersPage() {
                         <div>
                           <p className="font-medium text-gray-800">
                             {teacher.displayName}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {teacher.user.email}
                           </p>
                           <Link
                             href={`/teachers/${teacher.slug}`}
@@ -155,6 +159,8 @@ export default async function AdminTeachersPage() {
                     <td className="px-4 py-3">
                       <TeacherRowActions
                         teacherId={teacher.id}
+                        displayName={teacher.displayName}
+                        email={teacher.user.email}
                         isPublic={teacher.isPublic}
                         status={teacher.status}
                       />

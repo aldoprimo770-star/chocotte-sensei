@@ -23,6 +23,7 @@ export async function getAdminTeachers() {
       isVerified: true,
       identityVerificationStatus: true,
       createdAt: true,
+      user: { select: { id: true, email: true, role: true } },
       categories: { select: { category: { select: { name: true } } } },
       areas: { select: { prefecture: true } },
       // 本人確認画像・差し戻しコメント（管理者のみ・一覧でインライン表示）
@@ -52,7 +53,13 @@ export async function getAdminStudents() {
       displayName: true,
       prefecture: true,
       user: {
-        select: { email: true, createdAt: true, lastLoginAt: true },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          createdAt: true,
+          lastLoginAt: true,
+        },
       },
     },
   });

@@ -120,6 +120,92 @@ export async function rejectTeacherAction(
 }
 
 /**
+ * 先生アカウントを完全削除する（User ごと削除。関連データは Cascade）。
+ * TEACHER ロールのみ対象。管理者アカウントは削除できない。
+ */
+export async function deleteTeacherAccountAction(
+  teacherProfileId: string,
+): Promise<FormActionResult> {
+  await requireRole("ADMIN");
+
+  try {
+    const teacher = await getDb().teacherProfile.findUnique({
+      where: { id: teacherProfileId },
+      select: {
+        id: true,
+        slug: true,
+        user: { select: { id: true, role: true, email: true } },
+      },
+    });
+
+    if (!teacher) {
+      return { success: false, error: "先生が見つかりません。" };
+    }
+    if (teacher.user.role !== "TEACHER") {
+      return {
+        success: false,
+        error: "先生アカウント以外は削除できません。",
+      };
+    }
+
+    await getDb().user.delete({ where: { id: teacher.user.id } });
+
+    revalidatePath("/admin/teachers");
+    revalidatePath("/admin/students");
+    revalidatePath("/admin/purchases");
+    revalidatePath("/admin/consultations");
+    revalidatePath("/admin/verifications");
+    revalidatePath("/admin");
+    revalidatePath("/teachers");
+    revalidatePath(`/teachers/${teacher.slug}`);
+    return { success: true };
+  } catch {
+    return { success: false, error: "先生アカウントの削除に失敗しました。" };
+  }
+}
+
+/**
+ * 生徒アカウントを完全削除する（User ごと削除。関連データは Cascade）。
+ * STUDENT ロールのみ対象。
+ */
+export async function deleteStudentAccountAction(
+  studentProfileId: string,
+): Promise<FormActionResult> {
+  await requireRole("ADMIN");
+
+  try {
+    const student = await getDb().studentProfile.findUnique({
+      where: { id: studentProfileId },
+      select: {
+        id: true,
+        user: { select: { id: true, role: true } },
+      },
+    });
+
+    if (!student) {
+      return { success: false, error: "生徒が見つかりません。" };
+    }
+    if (student.user.role !== "STUDENT") {
+      return {
+        success: false,
+        error: "生徒アカウント以外は削除できません。",
+      };
+    }
+
+    await getDb().user.delete({ where: { id: student.user.id } });
+
+    revalidatePath("/admin/students");
+    revalidatePath("/admin/purchases");
+    revalidatePath("/admin/consultations");
+    revalidatePath("/admin/reviews");
+    revalidatePath("/admin");
+    return { success: true };
+  } catch {
+    return { success: false, error: "生徒アカウントの削除に失敗しました。" };
+  }
+}
+
+/**
  * 銀行振込の入金を確認し、購入を PAID にする。
  * 管理者のみ実行可能。生徒・先生は絶対に呼び出せない（requireRole("ADMIN")）。
  * 完了と同時に連絡先を開示（contactRevealedAt を記録）します。
