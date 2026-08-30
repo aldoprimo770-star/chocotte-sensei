@@ -6,8 +6,12 @@
 	"preview_urls": true,
 	"compatibility_date": "2024-09-23",
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	// bcrypt や SSR で Error 1102（CPU超過）になりにくくする（Workers Paid 想定）
+	"limits": {
+		"cpu_ms": 60000
+	},
 	"observability": {
-		"enabled": true
+    "enabled": true
 	},
 	"assets": {
 		"directory": ".open-next/assets",

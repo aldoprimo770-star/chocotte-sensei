@@ -5,10 +5,13 @@
  * ハッシュ化した値（passwordHash）のみを DB に保存します。
  *
  * bcryptjs はログイン/登録時のみ dynamic import し、Worker バンドルを分割する。
+ *
+ * Cloudflare Workers では bcrypt コストが高すぎると Error 1102
+ * （CPU 超過）になるため、コストは 10 を採用する。
  */
 
-/** ハッシュ化の強度（コスト）。値が大きいほど安全だが計算に時間がかかる */
-const SALT_ROUNDS = 12;
+/** Workers 向けに抑えたハッシュ強度（コスト10でも十分実用的） */
+const SALT_ROUNDS = 10;
 
 /** 平文パスワードをハッシュ化する */
 export async function hashPassword(plainPassword: string): Promise<string> {
@@ -23,4 +26,18 @@ export async function verifyPassword(
 ): Promise<boolean> {
   const bcrypt = (await import("bcryptjs")).default;
   return bcrypt.compare(plainPassword, passwordHash);
+}
+
+/** bcrypt ハッシュのコスト係数を取得（不明なら null） */
+export function getBcryptCost(passwordHash: string): number | null {
+  const parts = passwordHash.split("$");
+  // $2a$10$... / $2b$12$...
+  const cost = Number(parts[2]);
+  return Number.isFinite(cost) ? cost : null;
+}
+
+/** 現行コストより高いハッシュなら再ハッシュが必要 */
+export function needsPasswordRehash(passwordHash: string): boolean {
+  const cost = getBcryptCost(passwordHash);
+  return cost !== null && cost > SALT_ROUNDS;
 }

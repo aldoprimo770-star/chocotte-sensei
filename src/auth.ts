@@ -2,7 +2,11 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import type { UserRole } from "@prisma/client";
 import { getDb } from "@/lib/db";
-import { verifyPassword } from "@/lib/auth/password";
+import {
+  hashPassword,
+  needsPasswordRehash,
+  verifyPassword,
+} from "@/lib/auth/password";
 import { loginSchema } from "@/schemas/auth.schema";
 
 /**
@@ -58,10 +62,16 @@ export const {
           return null;
         }
 
-        // 最終ログイン日時を更新
+        // 最終ログイン更新。旧コスト(12等)のハッシュは Workers 向けコストへ段階移行
+        const data: { lastLoginAt: Date; passwordHash?: string } = {
+          lastLoginAt: new Date(),
+        };
+        if (needsPasswordRehash(user.passwordHash)) {
+          data.passwordHash = await hashPassword(password);
+        }
         await getDb().user.update({
           where: { id: user.id },
-          data: { lastLoginAt: new Date() },
+          data,
         });
 
         // ここで返した値が jwt コールバックの user に渡る

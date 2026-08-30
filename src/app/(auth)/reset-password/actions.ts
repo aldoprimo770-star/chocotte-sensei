@@ -46,16 +46,15 @@ export async function resetPasswordAction(
 
   const passwordHash = await hashPassword(parsed.data.password);
 
-  await getDb().$transaction([
-    getDb().user.update({
-      where: { id: record.userId },
-      data: { passwordHash },
-    }),
-    getDb().passwordResetToken.update({
-      where: { id: record.id },
-      data: { usedAt: new Date() },
-    }),
-  ]);
+  // Accelerate / Workers 向けに interactive transaction を避け、逐次更新する
+  await getDb().user.update({
+    where: { id: record.userId },
+    data: { passwordHash },
+  });
+  await getDb().passwordResetToken.update({
+    where: { id: record.id },
+    data: { usedAt: new Date() },
+  });
 
   return { success: true };
 }
