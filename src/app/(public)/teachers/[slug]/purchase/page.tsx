@@ -3,11 +3,14 @@ import type { Session } from "next-auth";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { SITE } from "@/constants/site";
-import { BANK_TRANSFER_DEADLINE_DAYS } from "@/constants/bank-transfer";
+import {
+  BANK_TRANSFER_DEADLINE_DAYS,
+  type BankAccountInfo,
+} from "@/constants/bank-transfer";
 import { getPublishedTeacherBySlug } from "@/lib/teacher/profile";
 import { getActivePurchase } from "@/lib/purchase/purchase";
 import {
-  getBankAccountInfo,
+  getBankAccountInfoForStudent,
   isBankAccountConfigured,
 } from "@/lib/settings/bank-account";
 import { formatDate } from "@/lib/date";
@@ -25,7 +28,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-/** 連絡先購入ページ（銀行振込） */
+/** 連絡先購入ページ（銀行振込）。口座情報は生徒ログイン時のみ取得・表示する。 */
 export default async function PurchasePage({ params }: PurchasePageProps) {
   const { slug } = await params;
   const teacher = await getPublishedTeacherBySlug(slug);
@@ -34,8 +37,13 @@ export default async function PurchasePage({ params }: PurchasePageProps) {
   }
 
   const session = await auth();
-  const bank = await getBankAccountInfo();
-  const bankConfigured = isBankAccountConfigured(bank);
+  const isStudent = session?.user?.role === "STUDENT";
+
+  // 未ログイン・非生徒には口座情報を一切載せない（サーバー側で取得しない）
+  const bank: BankAccountInfo | null = isStudent
+    ? await getBankAccountInfoForStudent()
+    : null;
+  const bankConfigured = bank ? isBankAccountConfigured(bank) : false;
 
   const deadline = new Date();
   deadline.setDate(deadline.getDate() + BANK_TRANSFER_DEADLINE_DAYS);
@@ -46,37 +54,63 @@ export default async function PurchasePage({ params }: PurchasePageProps) {
         銀行振込で連絡先を購入
       </h1>
 
-      {bankConfigured ? (
+      {/* 先生・金額の概要（口座番号などは含めない） */}
+      <Card className="mb-6">
+        <div className="flex items-center gap-4">
+          {teacher.profileImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={teacher.profileImageUrl}
+              alt={teacher.displayName}
+              className="h-16 w-16 rounded-full border border-border object-cover"
+            />
+          ) : (
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-surface text-2xl">
+              🍫
+            </div>
+          )}
+          <div>
+            <p className="font-bold text-foreground">{teacher.displayName}</p>
+            <p className="mt-1 text-sm text-muted">
+              連絡先の閲覧料金 ¥{SITE.contactPrice.toLocaleString()}（税込）
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      {isStudent && bankConfigured && bank ? (
         <BankAccountCard
           account={bank}
           amount={SITE.contactPrice}
           teacherName={teacher.displayName}
           deadlineLabel={formatDate(deadline)}
         />
-      ) : (
+      ) : null}
+
+      {isStudent && !bankConfigured ? (
         <Card className="mb-6">
           <p className="text-sm text-muted">
             現在、振込先口座の準備中です。しばらくしてから再度お試しください。
           </p>
         </Card>
-      )}
+      ) : null}
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>ご注意</CardTitle>
-        </CardHeader>
-        <ul className="list-disc space-y-2 pl-5 text-sm text-muted">
-          <li>
-            振込後、サイト上で「振込しました」を報告してください。
-          </li>
-          <li>
-            「振込しました」を押しただけでは連絡先は表示されません。運営が入金を確認した後に表示されます。
-          </li>
-          <li>一度購入すれば、購入履歴からいつでも連絡先を確認できます。</li>
-          <li>レッスン料金は本料金に含まれません。</li>
-          <li>購入後の返金はお受けできません。</li>
-        </ul>
-      </Card>
+      {isStudent ? (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>ご注意</CardTitle>
+          </CardHeader>
+          <ul className="list-disc space-y-2 pl-5 text-sm text-muted">
+            <li>振込後、サイト上で「振込しました」を報告してください。</li>
+            <li>
+              「振込しました」を押しただけでは連絡先は表示されません。運営が入金を確認した後に表示されます。
+            </li>
+            <li>一度購入すれば、購入履歴からいつでも連絡先を確認できます。</li>
+            <li>レッスン料金は本料金に含まれません。</li>
+            <li>購入後の返金はお受けできません。</li>
+          </ul>
+        </Card>
+      ) : null}
 
       <PurchaseArea
         teacherId={teacher.id}
@@ -103,7 +137,7 @@ async function PurchaseArea({
     return (
       <Card>
         <p className="mb-4 text-sm text-foreground">
-          連絡先の購入にはログインが必要です。
+          連絡先の購入には生徒アカウントでのログインが必要です。振込先口座情報はログイン後の購入画面でのみ表示されます。
         </p>
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button href={`/login?callbackUrl=/teachers/${slug}/purchase`}>
@@ -129,9 +163,6 @@ async function PurchaseArea({
 
   const active = await getActivePurchase(session.user.id, teacherId);
   if (active) {
-    if (active.status === "PAID") {
-      redirect(`/mypage/purchases/${active.id}`);
-    }
     redirect(`/mypage/purchases/${active.id}`);
   }
 

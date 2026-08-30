@@ -14,7 +14,7 @@ import { BANK_TRANSFER_DEADLINE_DAYS } from "@/constants/bank-transfer";
 import { SITE } from "@/constants/site";
 import { formatDate, formatDateTime } from "@/lib/date";
 import {
-  getBankAccountInfo,
+  getBankAccountInfoForStudent,
   isBankAccountConfigured,
 } from "@/lib/settings/bank-account";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,8 +46,8 @@ export default async function PurchaseDetailPage({
   const { teacher } = purchase;
   const revealed = canRevealContact(purchase.status);
 
-  const bank = await getBankAccountInfo();
-  const bankConfigured = isBankAccountConfigured(bank);
+  const bank = await getBankAccountInfoForStudent();
+  const bankConfigured = bank ? isBankAccountConfigured(bank) : false;
   const deadline = new Date(purchase.createdAt);
   deadline.setDate(deadline.getDate() + BANK_TRANSFER_DEADLINE_DAYS);
 
@@ -91,7 +91,7 @@ export default async function PurchaseDetailPage({
         />
       ) : purchase.status === "PENDING_PAYMENT" ? (
         <>
-          {bankConfigured ? (
+          {bankConfigured && bank ? (
             <BankAccountCard
               account={bank}
               amount={purchase.amount}
