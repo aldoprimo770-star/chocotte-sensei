@@ -21,6 +21,9 @@ export const studentRegisterSchema = z
     passwordConfirm: z
       .string()
       .min(1, { message: "確認用パスワードを入力してください" }),
+    agreeLegal: z.boolean().refine((v) => v === true, {
+      message: "利用規約とプライバシーポリシーへの同意が必要です",
+    }),
   })
   .refine((data) => data.password === data.passwordConfirm, {
     message: "パスワードが一致しません",

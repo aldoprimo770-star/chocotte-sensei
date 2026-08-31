@@ -9,6 +9,7 @@ import { hashPassword } from "@/lib/auth/password";
 import { generateTeacherSlug } from "@/lib/slug";
 import { verifyTurnstileToken } from "@/lib/turnstile/verify";
 import { TURNSTILE_ERROR_MESSAGE } from "@/constants/turnstile";
+import { buildConsentWriteData } from "@/lib/legal/consent";
 import {
   loginSchema,
   teacherRegisterSchema,
@@ -66,7 +67,13 @@ export async function registerTeacherAction(
     return { success: false, error: TURNSTILE_ERROR_MESSAGE };
   }
 
-  const { displayName, email, password } = parsed.data;
+  const { displayName, email, password, agreeLegal } = parsed.data;
+  if (!agreeLegal) {
+    return {
+      success: false,
+      error: "利用規約とプライバシーポリシーへの同意が必要です",
+    };
+  }
 
   // 2. メールアドレス重複チェック
   const existing = await getDb().user.findUnique({ where: { email } });
@@ -79,12 +86,14 @@ export async function registerTeacherAction(
 
   // 3. ユーザー + 先生プロフィールを同時作成（トランザクション）
   const passwordHash = await hashPassword(password);
+  const consent = buildConsentWriteData();
   try {
     await getDb().user.create({
       data: {
         email,
         passwordHash,
         role: "TEACHER",
+        ...consent,
         teacherProfile: {
           create: {
             slug: generateTeacherSlug(),
@@ -133,7 +142,13 @@ export async function registerStudentAction(
     return { success: false, error: TURNSTILE_ERROR_MESSAGE };
   }
 
-  const { displayName, email, password } = parsed.data;
+  const { displayName, email, password, agreeLegal } = parsed.data;
+  if (!agreeLegal) {
+    return {
+      success: false,
+      error: "利用規約とプライバシーポリシーへの同意が必要です",
+    };
+  }
 
   // メールアドレス重複チェック
   const existing = await getDb().user.findUnique({ where: { email } });
@@ -146,12 +161,14 @@ export async function registerStudentAction(
 
   // ユーザー + 生徒プロフィールを同時作成
   const passwordHash = await hashPassword(password);
+  const consent = buildConsentWriteData();
   try {
     await getDb().user.create({
       data: {
         email,
         passwordHash,
         role: "STUDENT",
+        ...consent,
         studentProfile: {
           create: { displayName },
         },

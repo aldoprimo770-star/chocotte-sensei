@@ -1,6 +1,7 @@
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { requireRole } from "@/lib/auth/session";
+import { requireCurrentLegalConsent } from "@/lib/legal/consent";
 
 /**
  * 先生用ページ共通レイアウト
@@ -11,8 +12,8 @@ export default async function TeacherLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // 先生ロール以外はここでリダイレクトされる
-  await requireRole("TEACHER");
+  const session = await requireRole("TEACHER");
+  await requireCurrentLegalConsent(session.user.id);
 
   return (
     <>

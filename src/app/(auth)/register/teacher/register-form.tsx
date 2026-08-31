@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   teacherRegisterSchema,
@@ -15,13 +15,10 @@ import { Label } from "@/components/ui/label";
 import { TurnstileWidget } from "@/components/security/turnstile-widget";
 import { useTurnstile } from "@/components/security/use-turnstile";
 import { TURNSTILE_ERROR_MESSAGE } from "@/constants/turnstile";
+import { LegalConsentCheckbox } from "@/components/auth/legal-consent-checkbox";
 
 /**
  * 先生 新規登録フォーム（クライアントコンポーネント）
- *
- * React Hook Form + Zod でリアルタイムに入力チェックし、
- * 送信時に Server Action(registerTeacherAction) を呼び出します。
- * メール重複などサーバー側でしか分からないエラーは formError に表示します。
  */
 export function TeacherRegisterForm({
   turnstileSiteKey,
@@ -41,13 +38,20 @@ export function TeacherRegisterForm({
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<TeacherRegisterInput>({
     resolver: zodResolver(teacherRegisterSchema),
+    defaultValues: { agreeLegal: false },
   });
 
   async function onSubmit(values: TeacherRegisterInput) {
     setFormError(null);
+
+    if (!values.agreeLegal) {
+      setFormError("利用規約とプライバシーポリシーへの同意が必要です");
+      return;
+    }
 
     if (!turnstileToken) {
       setFormError(TURNSTILE_ERROR_MESSAGE);
@@ -62,7 +66,6 @@ export function TeacherRegisterForm({
       return;
     }
 
-    // 失敗時はトークンが無効化されるためウィジェットをリセット
     resetTurnstile();
     setFormError(result.error);
   }
@@ -138,7 +141,18 @@ export function TeacherRegisterForm({
         <InputErrorMessage message={errors.passwordConfirm?.message} />
       </FormField>
 
-      {/* スパム対策（Cloudflare Turnstile） */}
+      <Controller
+        name="agreeLegal"
+        control={control}
+        render={({ field }) => (
+          <LegalConsentCheckbox
+            checked={field.value}
+            onChange={field.onChange}
+            error={errors.agreeLegal?.message}
+          />
+        )}
+      />
+
       {siteKey ? (
         <TurnstileWidget
           siteKey={siteKey}

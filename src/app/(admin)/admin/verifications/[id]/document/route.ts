@@ -11,7 +11,7 @@ import {
  *
  * - ADMIN のみアクセス可
  * - R2 内部参照はバケットから直接取得（公開 URL は使わない）
- * - 旧データの外部 HTTP URL はリダイレクト
+ * - 旧データの外部 HTTP URL も、サーバー側で取得して中継する（公開リダイレクトしない）
  */
 export async function GET(
   _request: Request,
@@ -33,34 +33,56 @@ export async function GET(
   }
 
   const r2Key = extractIdentityDocumentKey(verification.documentUrl);
-  if (!r2Key) {
-    // 既存互換: 外部 URL の場合はリダイレクト
-    if (
-      verification.documentUrl.startsWith("http://") ||
-      verification.documentUrl.startsWith("https://")
-    ) {
-      return Response.redirect(verification.documentUrl, 302);
+  if (r2Key) {
+    const bucket = await getProfileImagesBucket();
+    if (!bucket) {
+      return new Response("Storage unavailable", { status: 503 });
     }
-    return new Response("Not Found", { status: 404 });
+
+    const object = await getObjectFromR2(bucket, r2Key);
+    if (!object) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    const headers = new Headers();
+    headers.set(
+      "Content-Type",
+      object.httpMetadata?.contentType ?? "application/octet-stream",
+    );
+    headers.set("Cache-Control", "private, no-store");
+    headers.set("X-Content-Type-Options", "nosniff");
+
+    return new Response(object.body, { status: 200, headers });
   }
 
-  const bucket = await getProfileImagesBucket();
-  if (!bucket) {
-    return new Response("Storage unavailable", { status: 503 });
+  // 既存互換: 外部 URL はブラウザへリダイレクトせず、サーバー側で取得して中継
+  if (
+    verification.documentUrl.startsWith("http://") ||
+    verification.documentUrl.startsWith("https://")
+  ) {
+    try {
+      const upstream = await fetch(verification.documentUrl, {
+        redirect: "follow",
+        headers: { Accept: "image/*,application/octet-stream" },
+      });
+      if (!upstream.ok) {
+        return new Response("Not Found", { status: 404 });
+      }
+      const contentType =
+        upstream.headers.get("content-type") ?? "application/octet-stream";
+      const body = await upstream.arrayBuffer();
+      return new Response(body, {
+        status: 200,
+        headers: {
+          "Content-Type": contentType,
+          "Cache-Control": "private, no-store",
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
+    } catch {
+      return new Response("Not Found", { status: 404 });
+    }
   }
 
-  const object = await getObjectFromR2(bucket, r2Key);
-  if (!object) {
-    return new Response("Not Found", { status: 404 });
-  }
-
-  const headers = new Headers();
-  headers.set(
-    "Content-Type",
-    object.httpMetadata?.contentType ?? "application/octet-stream",
-  );
-  headers.set("Cache-Control", "private, no-store");
-  headers.set("X-Content-Type-Options", "nosniff");
-
-  return new Response(object.body, { status: 200, headers });
+  return new Response("Not Found", { status: 404 });
 }

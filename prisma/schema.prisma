@@ -203,6 +203,14 @@ model User {
   lastLoginAt   DateTime? @map("last_login_at") // 最終ログイン日時
   loginAttempts Int       @default(0) @map("login_attempts")
   lockedUntil   DateTime? @map("locked_until")
+  /** 利用規約に同意した日時 */
+  termsAcceptedAt   DateTime? @map("terms_accepted_at")
+  /** プライバシーポリシーに同意した日時 */
+  privacyAcceptedAt DateTime? @map("privacy_accepted_at")
+  /** 同意した利用規約のバージョン（例: 2026-08-31） */
+  termsVersion      String?   @map("terms_version")
+  /** 同意したプライバシーポリシーのバージョン */
+  privacyVersion    String?   @map("privacy_version")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 

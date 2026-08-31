@@ -34,11 +34,12 @@ export const FOOTER_LINKS = {
   ],
   teacher: [
     { href: "/register/teacher", label: "先生登録（無料）" },
-    { href: "/contact", label: "お問い合わせ" },
+    { href: "/register/student", label: "生徒登録（無料）" },
   ],
   legal: [
     { href: "/terms", label: "利用規約" },
     { href: "/privacy", label: "プライバシーポリシー" },
-    { href: "/legal", label: "特定商取引法" },
+    { href: "/legal", label: "運営者情報" },
+    { href: "/contact", label: "お問い合わせ" },
   ],
 } as const;

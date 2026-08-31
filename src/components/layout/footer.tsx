@@ -28,11 +28,11 @@ export function Footer() {
           {/* サービス */}
           <FooterLinkGroup title="サービス" links={FOOTER_LINKS.service} />
 
-          {/* 先生の方へ */}
-          <FooterLinkGroup title="先生の方へ" links={FOOTER_LINKS.teacher} />
+          {/* ご利用案内 */}
+          <FooterLinkGroup title="ご登録" links={FOOTER_LINKS.teacher} />
 
-          {/* 法的情報 */}
-          <FooterLinkGroup title="法的情報" links={FOOTER_LINKS.legal} />
+          {/* 法的情報・お問い合わせ */}
+          <FooterLinkGroup title="法的情報・お問い合わせ" links={FOOTER_LINKS.legal} />
         </div>
 
         <div className="mt-10 border-t border-border pt-6 text-center text-sm text-muted">

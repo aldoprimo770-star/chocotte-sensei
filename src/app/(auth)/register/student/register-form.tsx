@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   studentRegisterSchema,
@@ -15,10 +15,10 @@ import { Label } from "@/components/ui/label";
 import { TurnstileWidget } from "@/components/security/turnstile-widget";
 import { useTurnstile } from "@/components/security/use-turnstile";
 import { TURNSTILE_ERROR_MESSAGE } from "@/constants/turnstile";
+import { LegalConsentCheckbox } from "@/components/auth/legal-consent-checkbox";
 
 /**
  * 生徒 新規登録フォーム（クライアントコンポーネント）
- * 先生登録フォームと同じ構成で、送信先の Server Action のみ異なります。
  */
 export function StudentRegisterForm({
   turnstileSiteKey,
@@ -38,13 +38,20 @@ export function StudentRegisterForm({
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<StudentRegisterInput>({
     resolver: zodResolver(studentRegisterSchema),
+    defaultValues: { agreeLegal: false },
   });
 
   async function onSubmit(values: StudentRegisterInput) {
     setFormError(null);
+
+    if (!values.agreeLegal) {
+      setFormError("利用規約とプライバシーポリシーへの同意が必要です");
+      return;
+    }
 
     if (!turnstileToken) {
       setFormError(TURNSTILE_ERROR_MESSAGE);
@@ -59,7 +66,6 @@ export function StudentRegisterForm({
       return;
     }
 
-    // 失敗時はトークンが無効化されるためウィジェットをリセット
     resetTurnstile();
     setFormError(result.error);
   }
@@ -135,7 +141,18 @@ export function StudentRegisterForm({
         <InputErrorMessage message={errors.passwordConfirm?.message} />
       </FormField>
 
-      {/* スパム対策（Cloudflare Turnstile） */}
+      <Controller
+        name="agreeLegal"
+        control={control}
+        render={({ field }) => (
+          <LegalConsentCheckbox
+            checked={field.value}
+            onChange={field.onChange}
+            error={errors.agreeLegal?.message}
+          />
+        )}
+      />
+
       {siteKey ? (
         <TurnstileWidget
           siteKey={siteKey}
