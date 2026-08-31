@@ -71,7 +71,12 @@ export function StudentRegisterForm({
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+    <form
+      method="post"
+      onSubmit={handleSubmit(onSubmit)}
+      className="space-y-5"
+      noValidate
+    >
       {formError && (
         <p
           role="alert"

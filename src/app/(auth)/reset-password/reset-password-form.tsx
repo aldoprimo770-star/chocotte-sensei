@@ -47,7 +47,12 @@ export function ResetPasswordForm({ token }: { token: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+    <form
+      method="post"
+      onSubmit={handleSubmit(onSubmit)}
+      className="space-y-5"
+      noValidate
+    >
       <input type="hidden" {...register("token")} />
 
       {formError && (

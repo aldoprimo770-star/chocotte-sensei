@@ -50,7 +50,12 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+    <form
+      method="post"
+      onSubmit={handleSubmit(onSubmit)}
+      className="space-y-5"
+      noValidate
+    >
       {/* フォーム全体のエラー表示 */}
       {formError && (
         <p
