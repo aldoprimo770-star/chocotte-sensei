@@ -28,7 +28,9 @@ async function notifyContact(payload: ContactInput): Promise<void> {
       adminEmails.length > 0
         ? sendContactAdminNotification(adminEmails, payload)
         : Promise.resolve({ ok: false as const, error: "no admin recipient" }),
-      sendContactAutoReply(payload.email, payload.name),
+      sendContactAutoReply(payload.email, payload.name, {
+        isDisclosureRequest: payload.topic === "disclosure",
+      }),
     ]);
 
     results.forEach((result, index) => {
@@ -82,17 +84,25 @@ export async function submitContactAction(
   }
 
   try {
+    const topicLabel =
+      parsed.data.topic === "disclosure"
+        ? "【開示請求】"
+        : parsed.data.topic === "purchase"
+          ? "【購入・振込】"
+          : "";
+    const subject = `${topicLabel}${parsed.data.subject}`.slice(0, 100);
+
     await getDb().inquiry.create({
       data: {
         name: parsed.data.name,
         email: parsed.data.email,
-        subject: parsed.data.subject,
+        subject,
         message: parsed.data.message,
       },
     });
 
     // 保存に成功したら管理者通知と自動返信メールを送る（失敗しても送信は成功扱い）
-    await notifyContact(parsed.data);
+    await notifyContact({ ...parsed.data, subject });
 
     return { success: true };
   } catch {

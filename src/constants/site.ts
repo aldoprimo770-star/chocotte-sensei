@@ -39,7 +39,7 @@ export const FOOTER_LINKS = {
   legal: [
     { href: "/terms", label: "利用規約" },
     { href: "/privacy", label: "プライバシーポリシー" },
-    { href: "/legal", label: "運営者情報" },
+    { href: "/legal", label: "特定商取引法に基づく表記" },
     { href: "/contact", label: "お問い合わせ" },
   ],
 } as const;

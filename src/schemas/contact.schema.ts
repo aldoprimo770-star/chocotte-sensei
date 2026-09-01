@@ -1,4 +1,10 @@
 import { z } from "zod";
+import { CONTACT_TOPICS } from "@/constants/contact";
+
+const topicValues = CONTACT_TOPICS.map((t) => t.value) as [
+  (typeof CONTACT_TOPICS)[number]["value"],
+  ...(typeof CONTACT_TOPICS)[number]["value"][],
+];
 
 /**
  * お問い合わせフォームのバリデーションスキーマ
@@ -16,6 +22,9 @@ export const contactSchema = z.object({
     .min(1, "メールアドレスを入力してください")
     .email("正しいメールアドレスを入力してください")
     .max(255, "メールアドレスは255文字以内で入力してください"),
+  topic: z.enum(topicValues, {
+    message: "お問い合わせ種別を選択してください",
+  }),
   subject: z
     .string()
     .trim()

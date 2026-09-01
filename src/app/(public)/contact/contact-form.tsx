@@ -1,9 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { contactSchema, type ContactInput } from "@/schemas/contact.schema";
+import {
+  CONTACT_TOPICS,
+  getContactTopic,
+  type ContactTopicValue,
+} from "@/constants/contact";
 import { submitContactAction } from "./actions";
 import { Button } from "@/components/ui/button";
 import { FormField, Input, InputErrorMessage } from "@/components/ui/input";
@@ -15,16 +20,19 @@ import { TURNSTILE_ERROR_MESSAGE } from "@/constants/turnstile";
 
 /**
  * お問い合わせフォーム（クライアントコンポーネント）
- * 送信に成功すると同一ページ内で「送信完了」表示に切り替えます。
- * turnstileSiteKey は Server Component から渡す（Workers 実行時変数対応）。
+ * turnstileSiteKey / initialTopic は Server Component から渡す。
  */
 export function ContactForm({
   turnstileSiteKey,
+  initialTopic = "general",
 }: {
   turnstileSiteKey: string;
+  initialTopic?: ContactTopicValue;
 }) {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [submittedTopic, setSubmittedTopic] =
+    useState<ContactTopicValue>("general");
   const {
     siteKey,
     token: turnstileToken,
@@ -33,19 +41,41 @@ export function ContactForm({
     reset: resetTurnstile,
   } = useTurnstile(turnstileSiteKey);
 
+  const topicMeta = getContactTopic(initialTopic);
+
   const {
     register,
     handleSubmit,
     setError,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<ContactInput>({
     resolver: zodResolver(contactSchema),
+    defaultValues: {
+      topic: topicMeta.value,
+      subject: topicMeta.subject,
+      name: "",
+      email: "",
+      message:
+        topicMeta.value === "disclosure"
+          ? "特定商取引法に基づく表記に関し、販売事業者の住所および電話番号の開示を請求します。"
+          : "",
+    },
   });
+
+  const topic = watch("topic");
+
+  useEffect(() => {
+    const meta = getContactTopic(topic);
+    if (meta.subject) {
+      setValue("subject", meta.subject, { shouldValidate: true });
+    }
+  }, [topic, setValue]);
 
   async function onSubmit(values: ContactInput) {
     setFormError(null);
 
-    // トークン未取得なら送信せずエラー表示
     if (!turnstileToken) {
       setFormError(TURNSTILE_ERROR_MESSAGE);
       return;
@@ -54,11 +84,11 @@ export function ContactForm({
     const result = await submitContactAction(values, turnstileToken);
 
     if (result.success) {
+      setSubmittedTopic(values.topic);
       setSubmitted(true);
       return;
     }
 
-    // 送信失敗時はトークンが無効化されるため、必ずウィジェットをリセット
     resetTurnstile();
 
     if (result.fieldErrors) {
@@ -69,7 +99,6 @@ export function ContactForm({
     setFormError(result.error ?? "送信に失敗しました。");
   }
 
-  // 送信完了画面
   if (submitted) {
     return (
       <div className="rounded-2xl border border-border bg-surface px-6 py-12 text-center">
@@ -82,7 +111,9 @@ export function ContactForm({
         <p className="text-sm leading-relaxed text-muted">
           お問い合わせいただきありがとうございます。
           <br />
-          内容を確認のうえ、担当者よりご連絡いたします。
+          {submittedTopic === "disclosure"
+            ? "住所・電話番号の開示請求として受け付けました。申込みの意思決定に先立ち十分な余裕をもって、遅滞なく電子メール等によりご案内いたします。"
+            : "内容を確認のうえ、担当者よりご連絡いたします。"}
         </p>
         <div className="mt-6">
           <Button href="/" variant="outline">
@@ -94,7 +125,12 @@ export function ContactForm({
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+    <form
+      method="post"
+      onSubmit={handleSubmit(onSubmit)}
+      className="space-y-5"
+      noValidate
+    >
       {formError && (
         <p
           role="alert"
@@ -103,6 +139,31 @@ export function ContactForm({
           {formError}
         </p>
       )}
+
+      {topic === "disclosure" ? (
+        <p className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-muted">
+          特定商取引法に基づく表記における住所・電話番号の開示請求です。
+          ご入力のメールアドレス宛に、遅滞なく電子メール等でご案内します。
+        </p>
+      ) : null}
+
+      <FormField>
+        <Label htmlFor="topic" required>
+          お問い合わせ種別
+        </Label>
+        <select
+          id="topic"
+          className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          {...register("topic")}
+        >
+          {CONTACT_TOPICS.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+        <InputErrorMessage message={errors.topic?.message} />
+      </FormField>
 
       <FormField>
         <Label htmlFor="name" required>
@@ -162,7 +223,6 @@ export function ContactForm({
         <InputErrorMessage message={errors.message?.message} />
       </FormField>
 
-      {/* スパム対策（Cloudflare Turnstile） */}
       {siteKey ? (
         <TurnstileWidget
           siteKey={siteKey}

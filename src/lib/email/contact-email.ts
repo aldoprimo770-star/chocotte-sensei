@@ -8,6 +8,7 @@ export interface ContactMailPayload {
   email: string;
   subject: string;
   message: string;
+  topic?: string;
 }
 
 /** HTML メール用に危険な文字をエスケープする（入力値の埋め込み対策） */
@@ -72,23 +73,42 @@ export async function sendContactAdminNotification(
 export async function sendContactAutoReply(
   to: string,
   name: string,
+  options?: { isDisclosureRequest?: boolean },
 ): Promise<SendEmailResult> {
-  const subject = `【${SITE.name}】お問い合わせありがとうございます`;
+  const isDisclosure = Boolean(options?.isDisclosureRequest);
+  const subject = isDisclosure
+    ? `【${SITE.name}】住所・電話番号の開示請求を受け付けました`
+    : `【${SITE.name}】お問い合わせありがとうございます`;
 
-  const text = [
-    `${name} 様`,
-    "",
-    "お問い合わせありがとうございます。",
-    "内容を確認後、通常2営業日以内にご返信いたします。",
-    "",
-    "※このメールは自動送信です。",
-  ].join("\n");
+  const text = isDisclosure
+    ? [
+        `${name} 様`,
+        "",
+        "特定商取引法に基づく表記に関する住所・電話番号の開示請求を受け付けました。",
+        "申込みの意思決定に先立ち十分な余裕をもって、遅滞なく電子メール等によりご案内いたします。",
+        "",
+        "※このメールは自動送信です。",
+      ].join("\n")
+    : [
+        `${name} 様`,
+        "",
+        "お問い合わせありがとうございます。",
+        "内容を確認後、通常2営業日以内にご返信いたします。",
+        "",
+        "※このメールは自動送信です。",
+      ].join("\n");
 
-  const html = [
-    `<p>${escapeHtml(name)} 様</p>`,
-    "<p>お問い合わせありがとうございます。<br>内容を確認後、通常2営業日以内にご返信いたします。</p>",
-    "<p style=\"font-size:14px;color:#666;\">※このメールは自動送信です。</p>",
-  ].join("");
+  const html = isDisclosure
+    ? [
+        `<p>${escapeHtml(name)} 様</p>`,
+        "<p>特定商取引法に基づく表記に関する住所・電話番号の開示請求を受け付けました。<br>申込みの意思決定に先立ち十分な余裕をもって、遅滞なく電子メール等によりご案内いたします。</p>",
+        '<p style="font-size:14px;color:#666;">※このメールは自動送信です。</p>',
+      ].join("")
+    : [
+        `<p>${escapeHtml(name)} 様</p>`,
+        "<p>お問い合わせありがとうございます。<br>内容を確認後、通常2営業日以内にご返信いたします。</p>",
+        '<p style="font-size:14px;color:#666;">※このメールは自動送信です。</p>',
+      ].join("");
 
   return sendEmail({ to, subject, text, html });
 }

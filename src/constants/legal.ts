@@ -16,61 +16,76 @@ export const PRIVACY_EFFECTIVE_DATE = "2026年8月31日";
 /**
  * 運営者情報（特定商取引法・利用規約用）
  *
+ * 消費者庁「通信販売広告Q＆A」より:
+ * - Q16: 個人事業者は戸籍上の氏名（または商業登記の商号）。サイト名のみは不可。
+ * - Q17: 住所・電話は、請求により書面または電子メール等で「遅滞なく」提供する旨を
+ *   広告に表示し、実際に遅滞なく提供できる措置がある場合、広告上の表示を省略可能。
+ *
  * TODO（運営者が入力）:
- * - legalName: 販売事業者名（個人事業主の氏名または法人名）
- * - representative: 運営責任者名
- * - address: 所在地（請求があれば遅滞なく開示する方針でも可）
- * - phone: 電話番号（任意。公開しない場合は「請求があれば開示」）
- * - email: 公開用メール（未設定時はお問い合わせフォーム案内）
+ * - legalName: 販売事業者の正式氏名（個人事業主の戸籍上の氏名）
+ * - email: 公開用メール（任意。空ならお問い合わせフォーム案内）
+ *
+ * 住所・電話番号の実値は公開ページ・リポジトリに置かず、請求を受けたら
+ * お問い合わせの返信メール等で遅滞なく提供してください。
  */
 export const OPERATOR = {
-  /** TODO: 販売事業者名を記入 */
+  /** TODO: 販売事業者の正式氏名（戸籍上の氏名）を記入。サイト名のみは不可。 */
   legalName: "",
-  /** TODO: 運営責任者名を記入 */
-  representative: "",
-  /** TODO: 所在地を記入（または請求開示方針のまま） */
-  address: "",
-  /** TODO: 電話番号（任意） */
-  phone: "",
   /** TODO: 公開用メール（任意。空ならお問い合わせフォーム） */
   email: "",
+  /**
+   * 住所・電話の公開方針（消費者庁 Q17）。
+   * on_request = 公開ページでは実値を出さず、請求時に遅滞なく電子メール等で提供。
+   */
+  addressPhoneDisclosure: "on_request",
 } as const;
+
+/** 住所・電話の請求時開示に関する公開文言（消費者庁 Q17 の趣旨） */
+export const ADDRESS_PHONE_DISCLOSURE_NOTICE =
+  "住所及び電話番号については、消費者から請求があった場合、遅滞なく電子メール等により提供いたします。";
+
+/** 開示請求の受付案内 */
+export const ADDRESS_PHONE_DISCLOSURE_HOW_TO =
+  "開示のご請求は、サイト内のお問い合わせフォームより「住所・電話番号の開示請求（特定商取引法）」を選択してご連絡ください。";
 
 /** 未設定の運営者情報項目（レポート・画面用） */
 export const OPERATOR_TODOS: ReadonlyArray<{ key: string; label: string }> = [
-  { key: "legalName", label: "販売事業者名（個人の氏名または法人名）" },
-  { key: "representative", label: "運営責任者名" },
-  { key: "address", label: "所在地" },
-  { key: "phone", label: "電話番号（任意・請求開示でも可）" },
-  { key: "email", label: "公開用メールアドレス（任意）" },
+  {
+    key: "legalName",
+    label:
+      "販売事業者の正式氏名（個人事業主の戸籍上の氏名。サイト名のみは不可）",
+  },
+  {
+    key: "email",
+    label: "公開用メールアドレス（任意。未設定時はお問い合わせフォーム案内）",
+  },
+  {
+    key: "addressPhoneResponse",
+    label:
+      "住所・電話番号の開示請求に対し、遅滞なく電子メール等で回答できる運用体制",
+  },
 ];
 
 function operatorDisplay(value: string, fallback: string): string {
   return value.trim() ? value.trim() : fallback;
 }
 
-/** 特定商取引法・運営者情報ページ用の表示値 */
+/** 特定商取引法ページ等で使う公開向け表示値（住所・電話の実値は含まない） */
 export function getOperatorPublicFields() {
+  const legalName = operatorDisplay(
+    OPERATOR.legalName,
+    "（未設定：開業前に正式氏名を記入してください）",
+  );
   return {
-    legalName: operatorDisplay(
-      OPERATOR.legalName,
-      "（未設定：開業前に記入してください）",
-    ),
-    representative: operatorDisplay(
-      OPERATOR.representative,
-      "（未設定：開業前に記入してください）",
-    ),
-    address: operatorDisplay(
-      OPERATOR.address,
-      "請求があった場合には遅滞なく開示します",
-    ),
-    phone: operatorDisplay(
-      OPERATOR.phone,
-      "請求があった場合には遅滞なく開示します",
-    ),
+    legalName,
+    /** サービス名・屋号（販売事業者名の代替には使わない） */
+    serviceName: SITE.name,
+    addressPhoneNotice: ADDRESS_PHONE_DISCLOSURE_NOTICE,
+    addressPhoneHowTo: ADDRESS_PHONE_DISCLOSURE_HOW_TO,
     contact: OPERATOR.email.trim()
       ? OPERATOR.email.trim()
       : "サイト内のお問い合わせフォームよりご連絡ください",
+    isLegalNameSet: Boolean(OPERATOR.legalName.trim()),
   };
 }
 
@@ -258,8 +273,7 @@ export const TERMS_SECTIONS: readonly LegalSection[] = [
     paragraphs: [
       `サービス名：${SITE.name}`,
       `販売事業者：${getOperatorPublicFields().legalName}`,
-      `運営責任者：${getOperatorPublicFields().representative}`,
-      `所在地：${getOperatorPublicFields().address}`,
+      `住所・電話番号：${ADDRESS_PHONE_DISCLOSURE_NOTICE}`,
       `連絡先：${getOperatorPublicFields().contact}`,
       "詳細は「特定商取引法に基づく表記」ページもご確認ください。",
     ],
