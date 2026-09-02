@@ -115,8 +115,8 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
     setSavingMode(mode);
     setFormMessage(null);
     try {
-      // handleSubmit の検証済み data をそのまま送る（getValues は使わない）
-      const result = await saveTeacherProfileAction(data, mode);
+      // 検証済み data を単一ペイロードで送る（mode の取りこぼし防止）
+      const result = await saveTeacherProfileAction({ mode, values: data });
 
       if (result.success) {
         showMessage({
@@ -124,7 +124,7 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
           text:
             mode === "publish"
               ? "プロフィールを公開しました"
-              : "下書きを保存しました",
+              : "プロフィールを保存しました",
         });
         router.refresh();
         return;
@@ -175,7 +175,7 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
     () =>
       showMessage({
         type: "error",
-        text: "公開に必要な項目を確認してください",
+        text: "公開に必要な項目を確認してください。不足している項目を入力してから、もう一度「保存して公開する」を押してください。",
       }),
   );
 
@@ -613,7 +613,7 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
           onClick={onPublish}
           disabled={busy}
         >
-          {savingMode === "publish" ? "公開中..." : "公開する"}
+          {savingMode === "publish" ? "公開中..." : "保存して公開する"}
         </Button>
         <Link
           href="/profile/preview"
@@ -622,6 +622,9 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
           プレビューを見る
         </Link>
       </div>
+      <p className="text-xs text-muted">
+        「保存して公開する」を押すと、いまの編集内容を保存したうえで公開します。下書き保存を先に押す必要はありません。
+      </p>
     </form>
   );
 }

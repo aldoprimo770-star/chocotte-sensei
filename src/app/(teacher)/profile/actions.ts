@@ -4,12 +4,16 @@ import { revalidatePath } from "next/cache";
 import { getDb } from "@/lib/db";
 import { requireRole } from "@/lib/auth/session";
 import { calculateProfileCompletion } from "@/lib/teacher/profile-completion";
-import { formValuesToInput } from "@/lib/teacher/normalize-profile-form";
+import {
+  formValuesToInput,
+  normalizeProfileFormValues,
+} from "@/lib/teacher/normalize-profile-form";
 import { prepareTeachingMethodsForSave } from "@/lib/teacher/teaching-methods";
 import type { FormActionResult } from "@/types/action";
 import {
   teacherProfileDraftSchema,
   teacherProfilePublishSchema,
+  type TeacherProfileFormInput,
   type TeacherProfileFormValues,
 } from "@/schemas/teacher.schema";
 
@@ -17,9 +21,10 @@ import {
  * プロフィール保存 Server Action
  *
  * mode によって検証レベルと公開状態を切り替えます。
- * - "draft": 形式チェックのみ。status=DRAFT / 非公開
- * - "publish": 必須項目チェック。status=APPROVED / 公開
- *   （※本来は管理者承認フローを挟むが、MVPでは即公開とする）
+ * - "draft": 形式チェックのみ。未公開なら DRAFT/非公開のまま。
+ *           すでに公開中なら内容のみ更新し、公開状態は維持する。
+ * - "publish": 必須項目チェックのうえ、内容を保存して即座に公開する。
+ *   （※「公開する」だけで最新の編集内容が保存・公開される）
  */
 
 /** 保存モード */
@@ -28,25 +33,40 @@ export type SaveMode = "draft" | "publish";
 /** Server Action の戻り値（共通型を利用） */
 export type SaveProfileResult = FormActionResult;
 
+/** 1引数にまとめて Workers / Server Action シリアライズの取りこぼしを防ぐ */
+export type SaveTeacherProfilePayload = {
+  mode: SaveMode;
+  /** クライアント検証済み、またはフォーム生値（サーバーで再正規化・再検証する） */
+  values: TeacherProfileFormValues | TeacherProfileFormInput;
+};
+
 export async function saveTeacherProfileAction(
-  /** zodResolver 検証済みの変換後データ（getValues の生値は渡さない） */
-  values: TeacherProfileFormValues,
-  mode: SaveMode,
+  payload: SaveTeacherProfilePayload,
 ): Promise<SaveProfileResult> {
+  const mode = payload?.mode;
+  if (mode !== "draft" && mode !== "publish") {
+    return { success: false, error: "不正な保存リクエストです" };
+  }
+  if (!payload?.values || typeof payload.values !== "object") {
+    return { success: false, error: "保存するプロフィールデータがありません" };
+  }
+
   // 認証・権限チェック（先生のみ）
   const session = await requireRole("TEACHER");
 
-  // 対象プロフィールを取得
+  // 対象プロフィールを取得（公開状態の維持判定に使う）
   const profile = await getDb().teacherProfile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, slug: true },
+    select: { id: true, slug: true, isPublic: true, status: true },
   });
   if (!profile) {
     return { success: false, error: "プロフィールが見つかりません" };
   }
 
-  // クライアントで transform 済みの値を入力形へ戻し、サーバーでも再検証する
-  const inputForValidation = formValuesToInput(values);
+  // クライアントからの型ゆれを吸収し、サーバーでも再検証する
+  const inputForValidation = normalizeProfileFormValues(
+    formValuesToInput(payload.values as TeacherProfileFormValues),
+  );
   const schema =
     mode === "publish"
       ? teacherProfilePublishSchema
@@ -54,7 +74,6 @@ export async function saveTeacherProfileAction(
   const parsed = schema.safeParse(inputForValidation);
 
   if (!parsed.success) {
-    // Zodのエラーをフィールド単位に整形
     const fieldErrors: Record<string, string> = {};
     for (const issue of parsed.error.issues) {
       const key = issue.path[0];
@@ -66,7 +85,7 @@ export async function saveTeacherProfileAction(
       success: false,
       error:
         mode === "publish"
-          ? "公開に必要な項目が不足しています"
+          ? "公開に必要な項目が不足しています。入力内容を確認してください"
           : "入力内容を確認してください",
       fieldErrors,
     };
@@ -77,7 +96,6 @@ export async function saveTeacherProfileAction(
   const teaching = prepareTeachingMethodsForSave(data.teachingMethods);
   const validAreas = data.areas.filter((a) => a.prefecture);
 
-  // 完成率を計算
   const profileCompletion = calculateProfileCompletion({
     profileImageUrl: data.profileImageUrl,
     catchphrase: data.catchphrase,
@@ -91,9 +109,19 @@ export async function saveTeacherProfileAction(
     skillLevelCount: data.skillLevels.length,
   });
 
-  // プロフィール本体 + カテゴリー + 地域を更新
+  // 公開状態:
+  // - publish: 必ず公開
+  // - draft: すでに公開中なら公開を維持（内容だけ更新）。未公開なら DRAFT のまま
+  const keepPublished =
+    mode === "draft" &&
+    profile.isPublic === true &&
+    profile.status === "APPROVED";
+  const nextIsPublic = mode === "publish" ? true : keepPublished;
+  const nextStatus =
+    mode === "publish" ? "APPROVED" : keepPublished ? "APPROVED" : "DRAFT";
+
   // Cloudflare Workers + Prisma Accelerate では interactive $transaction が
-  // 失敗しやすいため、逐次実行する（部分失敗時は次リクエストで再保存可能）
+  // 失敗しやすいため、逐次実行する
   await getDb().teacherProfile.update({
     where: { id: profile.id },
     data: {
@@ -111,7 +139,6 @@ export async function saveTeacherProfileAction(
       ageRange: data.ageRange ?? null,
       teachingYears: data.teachingYears ?? null,
       teachingMethods: teaching.teachingMethods,
-      // 旧単一カラム・isOnline を同期（検索互換）
       teachingMethod: teaching.teachingMethod,
       isOnline: teaching.isOnline,
       priceMin: data.priceMin ?? null,
@@ -119,14 +146,12 @@ export async function saveTeacherProfileAction(
       targetAges: data.targetAges,
       skillLevels: data.skillLevels,
       isAcceptingStudents: data.isAcceptingStudents,
-      // 公開時のみ状態を更新（下書きは非公開のまま）
-      isPublic: mode === "publish",
-      status: mode === "publish" ? "APPROVED" : "DRAFT",
+      isPublic: nextIsPublic,
+      status: nextStatus,
       profileCompletion,
     },
   });
 
-  // カテゴリーは一旦削除して作り直す（差分管理より単純で安全）
   await getDb().teacherCategory.deleteMany({ where: { teacherId: profile.id } });
   if (data.categoryIds.length > 0) {
     await getDb().teacherCategory.createMany({
@@ -137,7 +162,6 @@ export async function saveTeacherProfileAction(
     });
   }
 
-  // 地域も同様に作り直す（市町村は任意）
   await getDb().teacherArea.deleteMany({ where: { teacherId: profile.id } });
   if (validAreas.length > 0) {
     await getDb().teacherArea.createMany({
@@ -149,7 +173,6 @@ export async function saveTeacherProfileAction(
     });
   }
 
-  // 関連ページのキャッシュを更新（公開プロフィール含む）
   try {
     revalidatePath("/dashboard");
     revalidatePath("/profile");

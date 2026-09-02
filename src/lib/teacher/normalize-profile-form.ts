@@ -27,11 +27,11 @@ export function normalizeProfileFormValues(
 }
 
 /**
- * zodResolver 検証後の output（数値・undefined 済み）を、
- * Server Action 再検証用の入力形（文字列）へ戻す。
+ * zodResolver 検証後の output（数値・undefined 済み）や、
+ * フォーム生値を、Server Action 再検証用の入力形（文字列）へ戻す。
  */
 export function formValuesToInput(
-  data: TeacherProfileFormValues,
+  data: TeacherProfileFormValues | TeacherProfileFormInput,
 ): TeacherProfileFormInput {
   return {
     displayName: data.displayName,
@@ -47,13 +47,25 @@ export function formValuesToInput(
     gender: data.gender ?? "",
     ageRange: data.ageRange ?? "",
     teachingYears:
-      data.teachingYears != null ? String(data.teachingYears) : "",
-    teachingMethods: data.teachingMethods ?? [],
-    priceMin: data.priceMin != null ? String(data.priceMin) : "",
-    priceMax: data.priceMax != null ? String(data.priceMax) : "",
-    targetAges: data.targetAges ?? [],
-    skillLevels: data.skillLevels ?? [],
-    categoryIds: data.categoryIds ?? [],
+      data.teachingYears != null && data.teachingYears !== ""
+        ? String(data.teachingYears)
+        : "",
+    teachingMethods: toStringArray(data.teachingMethods) as TeacherProfileFormInput["teachingMethods"],
+    priceMin:
+      data.priceMin != null && data.priceMin !== ""
+        ? String(data.priceMin)
+        : "",
+    priceMax:
+      data.priceMax != null && data.priceMax !== ""
+        ? String(data.priceMax)
+        : "",
+    targetAges: toStringArray(
+      data.targetAges,
+    ) as TeacherProfileFormInput["targetAges"],
+    skillLevels: toStringArray(
+      data.skillLevels,
+    ) as TeacherProfileFormInput["skillLevels"],
+    categoryIds: toStringArray(data.categoryIds),
     areas: (data.areas ?? []).map((a) => ({
       prefecture: a.prefecture,
       city: a.city ?? "",
