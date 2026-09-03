@@ -35,7 +35,7 @@ export function HeroSearch({
   return (
     <form
       onSubmit={handleSubmit}
-      className="mx-auto grid max-w-3xl gap-3 rounded-2xl bg-background p-4 shadow-sm sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-center"
+      className="grid w-full gap-3 rounded-2xl bg-background p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-center"
     >
       <Input
         type="search"

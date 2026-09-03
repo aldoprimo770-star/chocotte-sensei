@@ -86,22 +86,44 @@ export default async function HomePage() {
       <JsonLd
         data={[buildOrganizationJsonLd(), buildWebSiteJsonLd()]}
       />
-      {/* ① ヒーローエリア + ② 検索フォーム */}
-      <section className="bg-gradient-to-b from-primary-light to-surface px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="mb-3 text-sm font-medium text-primary">
-            学びたい人と教えたい人をつなぐ
-          </p>
-          <h1 className="mb-5 text-3xl font-bold leading-tight text-foreground sm:text-4xl">
-            あなたにぴったりの
-            <br className="sm:hidden" />
-            先生が見つかる
-          </h1>
-          <p className="mb-8 text-base text-muted sm:text-lg">
-            {SITE.description}
-          </p>
+      {/* ① ヒーローエリア + ② 検索フォーム（PC: 左コピー/検索・右イラスト枠） */}
+      <section className="bg-gradient-to-b from-primary-light to-surface px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2 lg:gap-12 xl:gap-16">
+          <div className="text-center lg:text-left">
+            <p className="mb-3 text-sm font-medium text-primary">
+              学びたい人と教えたい人をつなぐ
+            </p>
+            <h1 className="mb-5 text-3xl font-bold leading-tight text-foreground sm:text-4xl">
+              あなたにぴったりの
+              <br className="sm:hidden" />
+              先生が見つかる
+            </h1>
+            <p className="mb-8 text-base text-muted sm:text-lg">
+              {SITE.description}
+            </p>
+            <HeroSearch categories={categories} />
+          </div>
+
+          {/* 右側: オリジナルイラスト差し替え用スロット（画像未配置） */}
+          <div
+            className="relative mx-auto w-full max-w-md lg:max-w-none"
+            aria-hidden="true"
+          >
+            <div className="aspect-[4/3] overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-background via-secondary-light/40 to-primary-light shadow-sm">
+              <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
+                <span className="text-4xl opacity-70" aria-hidden="true">
+                  🍫
+                </span>
+                <p className="text-sm font-medium text-muted">
+                  イラスト掲載予定
+                </p>
+                <p className="max-w-[14rem] text-xs leading-relaxed text-muted/80">
+                  先生と生徒が楽しく学んでいるイメージイラストをここに配置します
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
-        <HeroSearch categories={categories} />
       </section>
 
       {/* ③ 管理者からのお知らせ */}
