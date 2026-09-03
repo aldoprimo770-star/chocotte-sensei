@@ -373,7 +373,7 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
             <Input
               id="phone"
               type="tel"
-              placeholder="090-1234-5678"
+              placeholder="09012345678"
               hasError={!!errors.phone}
               {...register("phone")}
             />
