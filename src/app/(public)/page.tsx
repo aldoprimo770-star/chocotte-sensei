@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { SITE } from "@/constants/site";
 import { GENERAL_FAQS } from "@/constants/faq";
 import { getActiveCategories } from "@/lib/categories";
@@ -104,24 +105,17 @@ export default async function HomePage() {
             <HeroSearch categories={categories} />
           </div>
 
-          {/* 右側: オリジナルイラスト差し替え用スロット（画像未配置） */}
-          <div
-            className="relative mx-auto w-full max-w-md lg:max-w-none"
-            aria-hidden="true"
-          >
-            <div className="aspect-[4/3] overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-background via-secondary-light/40 to-primary-light shadow-sm">
-              <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
-                <span className="text-4xl opacity-70" aria-hidden="true">
-                  🍫
-                </span>
-                <p className="text-sm font-medium text-muted">
-                  イラスト掲載予定
-                </p>
-                <p className="max-w-[14rem] text-xs leading-relaxed text-muted/80">
-                  先生と生徒が楽しく学んでいるイメージイラストをここに配置します
-                </p>
-              </div>
-            </div>
+          {/* 右側: メインイラスト */}
+          <div className="relative mx-auto w-full max-w-md lg:mx-0 lg:max-w-none">
+            <Image
+              src="/images/hero-illustration.jpg"
+              alt="先生と生徒が楽しく学んでいる様子"
+              width={1024}
+              height={682}
+              priority
+              sizes="(max-width: 1023px) 90vw, 50vw"
+              className="h-auto w-full"
+            />
           </div>
         </div>
       </section>
