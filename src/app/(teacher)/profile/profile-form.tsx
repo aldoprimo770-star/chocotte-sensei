@@ -1,7 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
-import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,7 +14,15 @@ import {
   type SaveMode,
 } from "@/app/(teacher)/profile/actions";
 import { calculateProfileCompletion } from "@/lib/teacher/profile-completion";
-import { normalizeProfileFormValues } from "@/lib/teacher/normalize-profile-form";
+import {
+  formValuesToInput,
+  normalizeProfileFormValues,
+} from "@/lib/teacher/normalize-profile-form";
+import {
+  clearUnsavedProfilePreview,
+  loadUnsavedProfilePreview,
+  saveUnsavedProfilePreview,
+} from "@/lib/teacher/unsaved-profile-preview";
 import {
   AGE_RANGE_OPTIONS,
   GENDER_OPTIONS,
@@ -66,12 +73,26 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
     control,
     handleSubmit,
     watch,
+    getValues,
+    reset,
     setError,
     formState: { errors, isSubmitting },
   } = useForm<TeacherProfileFormInput, unknown, TeacherProfileFormValues>({
     resolver: zodResolver(teacherProfileDraftSchema),
     defaultValues: normalizeProfileFormValues(defaultValues),
   });
+
+  // プレビュー往復用: 未保存入力を sessionStorage から復元し、以降の変更も保持する
+  useEffect(() => {
+    const draft = loadUnsavedProfilePreview();
+    if (draft) {
+      reset(normalizeProfileFormValues(draft));
+    }
+    const subscription = watch(() => {
+      saveUnsavedProfilePreview(formValuesToInput(getValues()));
+    });
+    return () => subscription.unsubscribe();
+  }, [getValues, reset, watch]);
 
   // 入力状況に応じて完成率をリアルタイム計算
   const values = watch();
@@ -119,6 +140,7 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
       const result = await saveTeacherProfileAction({ mode, values: data });
 
       if (result.success) {
+        clearUnsavedProfilePreview();
         showMessage({
           type: "success",
           text:
@@ -178,6 +200,12 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
         text: "公開に必要な項目を確認してください。不足している項目を入力してから、もう一度「保存して公開する」を押してください。",
       }),
   );
+
+  function onPreview() {
+    const current = getValues();
+    saveUnsavedProfilePreview(formValuesToInput(current));
+    router.push("/profile/preview");
+  }
 
   const busy = isSubmitting || savingMode !== null;
 
@@ -615,12 +643,14 @@ export function ProfileForm({ defaultValues, categories }: ProfileFormProps) {
         >
           {savingMode === "publish" ? "公開中..." : "保存して公開する"}
         </Button>
-        <Link
-          href="/profile/preview"
-          className="text-sm font-medium text-primary hover:underline sm:ml-auto"
+        <button
+          type="button"
+          onClick={onPreview}
+          disabled={busy}
+          className="text-sm font-medium text-primary hover:underline sm:ml-auto disabled:opacity-50"
         >
           プレビューを見る
-        </Link>
+        </button>
       </div>
       <p className="text-xs text-muted">
         「保存して公開する」を押すと、いまの編集内容を保存したうえで公開します。下書き保存を先に押す必要はありません。
