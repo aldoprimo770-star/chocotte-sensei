@@ -4,10 +4,10 @@ import Link from "next/link";
 import { SITE } from "@/constants/site";
 import { BANK_TRANSFER_DEADLINE_DAYS } from "@/constants/bank-transfer";
 import {
-  getOperatorPublicFields,
-  OPERATOR,
-  OPERATOR_TODOS,
+  ADDRESS_PHONE_DISCLOSURE_HOW_TO,
+  ADDRESS_PHONE_DISCLOSURE_NOTICE,
 } from "@/constants/legal";
+import { getOperatorLegalInfoPublic } from "@/lib/settings/operator-legal";
 import { buildMetadata } from "@/lib/seo";
 import { PageHeader } from "@/components/common/page-header";
 
@@ -17,24 +17,54 @@ export const metadata: Metadata = buildMetadata({
   path: "/legal",
 });
 
+export const dynamic = "force-dynamic";
+
+function DisclosureValue() {
+  return (
+    <>
+      <p>{ADDRESS_PHONE_DISCLOSURE_NOTICE}</p>
+      <p className="mt-2">
+        {ADDRESS_PHONE_DISCLOSURE_HOW_TO}（
+        <Link
+          href="/contact?topic=disclosure"
+          className="text-primary hover:underline"
+        >
+          開示請求フォームへ
+        </Link>
+        ）
+      </p>
+    </>
+  );
+}
+
 /**
  * 特定商取引法に基づく表記
  *
- * 表示事項は消費者庁「通信販売広告について」「通信販売広告Q＆A」を参照。
- * 住所・電話は Q17 に基づき請求時開示方式。
  * 販売事業者名は Q16 に基づき正式氏名（サイト名のみ不可）。
+ * 住所・電話は管理画面の方針に従い、請求時開示または一般公開。
  */
-export default function LegalPage() {
-  const op = getOperatorPublicFields();
+export default async function LegalPage() {
+  const op = await getOperatorLegalInfoPublic();
   const priceLabel = `${SITE.contactPrice.toLocaleString()}円（税込）`;
-  const hasPublicEmail = Boolean(OPERATOR.email.trim());
+  const showAddressPhone = op.addressPhoneDisclosure === "public";
+
+  const addressValue: ReactNode = showAddressPhone
+    ? (op.publicAddress ?? "（未設定）")
+    : (
+        <DisclosureValue />
+      );
+  const phoneValue: ReactNode = showAddressPhone
+    ? (op.publicPhone ?? "（未設定）")
+    : (
+        <DisclosureValue />
+      );
 
   const items: readonly { label: string; value: ReactNode }[] = [
     {
       label: "販売事業者",
       value: (
         <>
-          <span>{op.legalName}</span>
+          <span>{op.legalNameDisplay}</span>
           <span className="mt-1 block text-xs text-muted">
             ※個人事業主の場合は戸籍上の氏名を表示します（サイト名「
             {op.serviceName}
@@ -49,44 +79,16 @@ export default function LegalPage() {
     },
     {
       label: "住所",
-      value: (
-        <>
-          <p>{op.addressPhoneNotice}</p>
-          <p className="mt-2">
-            {op.addressPhoneHowTo}（
-            <Link
-              href="/contact?topic=disclosure"
-              className="text-primary hover:underline"
-            >
-              開示請求フォームへ
-            </Link>
-            ）
-          </p>
-        </>
-      ),
+      value: addressValue,
     },
     {
       label: "電話番号",
-      value: (
-        <>
-          <p>{op.addressPhoneNotice}</p>
-          <p className="mt-2">
-            {op.addressPhoneHowTo}（
-            <Link
-              href="/contact?topic=disclosure"
-              className="text-primary hover:underline"
-            >
-              開示請求フォームへ
-            </Link>
-            ）
-          </p>
-        </>
-      ),
+      value: phoneValue,
     },
     {
       label: "連絡先（メール等）",
-      value: hasPublicEmail ? (
-        op.contact
+      value: op.hasPublicEmail ? (
+        op.email
       ) : (
         <>
           サイト内のお問い合わせフォームよりご連絡ください（
@@ -141,7 +143,9 @@ export default function LegalPage() {
       <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
         <p className="mb-8 text-sm leading-relaxed text-muted">
           本ページは、特定商取引法に基づき、通信販売（役務の提供）に関する表示事項を掲載するものです。
-          住所及び電話番号については、消費者庁の通信販売広告に関する公式Q＆Aを踏まえ、請求があった場合に遅滞なく電子メール等により提供する方式としています。
+          {showAddressPhone
+            ? " 住所及び電話番号は本ページに表示しています。"
+            : " 住所及び電話番号については、消費者庁の通信販売広告に関する公式Q＆Aを踏まえ、請求があった場合に遅滞なく電子メール等により提供する方式としています。"}
         </p>
 
         <dl className="divide-y divide-border overflow-hidden rounded-2xl border border-border">
@@ -172,34 +176,27 @@ export default function LegalPage() {
             </Link>
             をご確認ください。
           </p>
-          <p>
-            住所・電話番号の開示請求、その他のご質問は
-            <Link
-              href="/contact?topic=disclosure"
-              className="text-primary hover:underline"
-            >
-              お問い合わせフォーム
-            </Link>
-            よりご連絡ください。請求を受けた場合、遅滞なく電子メール等により回答いたします。
-          </p>
+          {showAddressPhone ? (
+            <p>
+              ご質問は
+              <Link href="/contact" className="text-primary hover:underline">
+                お問い合わせフォーム
+              </Link>
+              よりご連絡ください。
+            </p>
+          ) : (
+            <p>
+              住所・電話番号の開示請求、その他のご質問は
+              <Link
+                href="/contact?topic=disclosure"
+                className="text-primary hover:underline"
+              >
+                お問い合わせフォーム
+              </Link>
+              よりご連絡ください。請求を受けた場合、遅滞なく電子メール等により回答いたします。
+            </p>
+          )}
         </div>
-
-        {!op.isLegalNameSet ? (
-          <div className="mt-8 rounded-2xl border border-dashed border-border bg-surface px-5 py-4">
-            <p className="text-sm font-medium text-foreground">
-              運営者記入待ち（TODO）
-            </p>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
-              {OPERATOR_TODOS.map((t) => (
-                <li key={t.key}>{t.label}</li>
-              ))}
-            </ul>
-            <p className="mt-2 text-xs text-muted">
-              設定場所: <code className="text-xs">src/constants/legal.ts</code>{" "}
-              の <code className="text-xs">OPERATOR.legalName</code>
-            </p>
-          </div>
-        ) : null}
       </div>
     </div>
   );

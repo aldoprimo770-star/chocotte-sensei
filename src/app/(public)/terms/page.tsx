@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { SITE } from "@/constants/site";
 import {
   TERMS_EFFECTIVE_DATE,
-  TERMS_SECTIONS,
   TERMS_VERSION,
+  getTermsSections,
 } from "@/constants/legal";
+import { getOperatorLegalInfoPublic } from "@/lib/settings/operator-legal";
 import { buildMetadata } from "@/lib/seo";
 import { PageHeader } from "@/components/common/page-header";
 import { LegalSections } from "@/components/common/legal-sections";
@@ -15,8 +16,11 @@ export const metadata: Metadata = buildMetadata({
   path: "/terms",
 });
 
+export const dynamic = "force-dynamic";
+
 /** 利用規約ページ */
-export default function TermsPage() {
+export default async function TermsPage() {
+  const op = await getOperatorLegalInfoPublic();
   return (
     <div>
       <PageHeader
@@ -24,7 +28,7 @@ export default function TermsPage() {
         subtitle={`${SITE.name}のご利用条件です`}
       />
       <LegalSections
-        sections={TERMS_SECTIONS}
+        sections={getTermsSections(op)}
         updatedAt={TERMS_EFFECTIVE_DATE}
         version={TERMS_VERSION}
       />

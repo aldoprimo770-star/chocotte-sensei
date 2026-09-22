@@ -11,6 +11,7 @@ export const ADMIN_NAV_LINKS: ReadonlyArray<{ href: string; label: string }> = [
   { href: "/admin/reviews", label: "レビュー" },
   { href: "/admin/purchases", label: "購入管理" },
   { href: "/admin/bank-account", label: "振込先口座" },
+  { href: "/admin/legal-operator", label: "特商法・事業者情報" },
   { href: "/admin/consultations", label: "相談履歴" },
   { href: "/admin/ng-words", label: "NGワード" },
   { href: "/admin/reports", label: "通報" },

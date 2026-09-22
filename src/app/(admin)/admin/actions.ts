@@ -1018,3 +1018,40 @@ export async function saveBankAccountAction(input: {
     return { success: false, error: "口座情報の保存に失敗しました。" };
   }
 }
+
+/** 特商法・事業者情報を保存する（管理者専用） */
+export async function saveOperatorLegalAction(input: {
+  legalName: string;
+  email: string;
+  address: string;
+  phone: string;
+  addressPhoneDisclosure: string;
+}): Promise<FormActionResult> {
+  await requireRole("ADMIN");
+
+  const email = input.email.trim();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { success: false, error: "公開メールアドレスの形式を確認してください。" };
+  }
+
+  try {
+    const { saveOperatorLegalInfo } = await import(
+      "@/lib/settings/operator-legal"
+    );
+    await saveOperatorLegalInfo({
+      legalName: input.legalName,
+      email,
+      address: input.address,
+      phone: input.phone,
+      addressPhoneDisclosure:
+        input.addressPhoneDisclosure === "public" ? "public" : "on_request",
+    });
+    revalidatePath("/admin/legal-operator");
+    revalidatePath("/legal");
+    revalidatePath("/terms");
+    revalidatePath("/privacy");
+    return { success: true };
+  } catch {
+    return { success: false, error: "事業者情報の保存に失敗しました。" };
+  }
+}

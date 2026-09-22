@@ -1,5 +1,6 @@
 import { SITE } from "@/constants/site";
 import { PRE_CONSULTATION_MAX_ROUND_TRIPS } from "@/constants/consultation";
+import type { OperatorLegalPublic } from "@/constants/operator-legal";
 import type { LegalSection } from "@/components/common/legal-sections";
 
 /**
@@ -14,31 +15,14 @@ export const TERMS_EFFECTIVE_DATE = "2026年8月31日";
 export const PRIVACY_EFFECTIVE_DATE = "2026年8月31日";
 
 /**
- * 運営者情報（特定商取引法・利用規約用）
+ * 運営者の実データ（氏名・住所・電話・メール）は SiteSetting
+ * `operator_legal_info` に保存する。このファイルに個人情報を書かない。
  *
  * 消費者庁「通信販売広告Q＆A」より:
  * - Q16: 個人事業者は戸籍上の氏名（または商業登記の商号）。サイト名のみは不可。
  * - Q17: 住所・電話は、請求により書面または電子メール等で「遅滞なく」提供する旨を
  *   広告に表示し、実際に遅滞なく提供できる措置がある場合、広告上の表示を省略可能。
- *
- * TODO（運営者が入力）:
- * - legalName: 販売事業者の正式氏名（個人事業主の戸籍上の氏名）
- * - email: 公開用メール（任意。空ならお問い合わせフォーム案内）
- *
- * 住所・電話番号の実値は公開ページ・リポジトリに置かず、請求を受けたら
- * お問い合わせの返信メール等で遅滞なく提供してください。
  */
-export const OPERATOR = {
-  /** TODO: 販売事業者の正式氏名（戸籍上の氏名）を記入。サイト名のみは不可。 */
-  legalName: "",
-  /** TODO: 公開用メール（任意。空ならお問い合わせフォーム） */
-  email: "",
-  /**
-   * 住所・電話の公開方針（消費者庁 Q17）。
-   * on_request = 公開ページでは実値を出さず、請求時に遅滞なく電子メール等で提供。
-   */
-  addressPhoneDisclosure: "on_request",
-} as const;
 
 /** 住所・電話の請求時開示に関する公開文言（消費者庁 Q17 の趣旨） */
 export const ADDRESS_PHONE_DISCLOSURE_NOTICE =
@@ -48,49 +32,29 @@ export const ADDRESS_PHONE_DISCLOSURE_NOTICE =
 export const ADDRESS_PHONE_DISCLOSURE_HOW_TO =
   "開示のご請求は、サイト内のお問い合わせフォームより「住所・電話番号の開示請求（特定商取引法）」を選択してご連絡ください。";
 
-/** 未設定の運営者情報項目（レポート・画面用） */
-export const OPERATOR_TODOS: ReadonlyArray<{ key: string; label: string }> = [
-  {
-    key: "legalName",
-    label:
-      "販売事業者の正式氏名（個人事業主の戸籍上の氏名。サイト名のみは不可）",
-  },
-  {
-    key: "email",
-    label: "公開用メールアドレス（任意。未設定時はお問い合わせフォーム案内）",
-  },
-  {
-    key: "addressPhoneResponse",
-    label:
-      "住所・電話番号の開示請求に対し、遅滞なく電子メール等で回答できる運用体制",
-  },
-];
-
-function operatorDisplay(value: string, fallback: string): string {
-  return value.trim() ? value.trim() : fallback;
+function operatorTermsParagraphs(
+  op: OperatorLegalPublic,
+): readonly string[] {
+  const lines: string[] = [
+    `サービス名：${SITE.name}`,
+    `販売事業者：${op.legalNameDisplay}`,
+  ];
+  if (op.addressPhoneDisclosure === "public") {
+    lines.push(`住所：${op.publicAddress ?? "（未設定）"}`);
+    lines.push(`電話番号：${op.publicPhone ?? "（未設定）"}`);
+  } else {
+    lines.push(`住所・電話番号：${ADDRESS_PHONE_DISCLOSURE_NOTICE}`);
+  }
+  lines.push(`連絡先：${op.contactDisplay}`);
+  lines.push("詳細は「特定商取引法に基づく表記」ページもご確認ください。");
+  return lines;
 }
 
-/** 特定商取引法ページ等で使う公開向け表示値（住所・電話の実値は含まない） */
-export function getOperatorPublicFields() {
-  const legalName = operatorDisplay(
-    OPERATOR.legalName,
-    "（未設定：開業前に正式氏名を記入してください）",
-  );
-  return {
-    legalName,
-    /** サービス名・屋号（販売事業者名の代替には使わない） */
-    serviceName: SITE.name,
-    addressPhoneNotice: ADDRESS_PHONE_DISCLOSURE_NOTICE,
-    addressPhoneHowTo: ADDRESS_PHONE_DISCLOSURE_HOW_TO,
-    contact: OPERATOR.email.trim()
-      ? OPERATOR.email.trim()
-      : "サイト内のお問い合わせフォームよりご連絡ください",
-    isLegalNameSet: Boolean(OPERATOR.legalName.trim()),
-  };
-}
-
-/** 利用規約本文（現行サービス仕様に合わせた内容） */
-export const TERMS_SECTIONS: readonly LegalSection[] = [
+/** 利用規約本文（運営者欄は DB の公開情報を渡して組み立てる） */
+export function getTermsSections(
+  op: OperatorLegalPublic,
+): readonly LegalSection[] {
+  return [
   {
     heading: "本規約への同意",
     paragraphs: [
@@ -270,18 +234,16 @@ export const TERMS_SECTIONS: readonly LegalSection[] = [
   },
   {
     heading: "運営者情報",
-    paragraphs: [
-      `サービス名：${SITE.name}`,
-      `販売事業者：${getOperatorPublicFields().legalName}`,
-      `住所・電話番号：${ADDRESS_PHONE_DISCLOSURE_NOTICE}`,
-      `連絡先：${getOperatorPublicFields().contact}`,
-      "詳細は「特定商取引法に基づく表記」ページもご確認ください。",
-    ],
+    paragraphs: operatorTermsParagraphs(op),
   },
-];
+  ];
+}
 
-/** プライバシーポリシー本文 */
-export const PRIVACY_SECTIONS: readonly LegalSection[] = [
+/** プライバシーポリシー本文（運営者名は DB の公開情報を渡して組み立てる） */
+export function getPrivacySections(
+  op: OperatorLegalPublic,
+): readonly LegalSection[] {
+  return [
   {
     heading: "基本方針",
     paragraphs: [
@@ -403,7 +365,8 @@ export const PRIVACY_SECTIONS: readonly LegalSection[] = [
     paragraphs: [
       "個人情報の取り扱いに関するお問い合わせは、サイト内のお問い合わせフォームよりご連絡ください。",
       `サービス名：${SITE.name}`,
-      `運営者：${getOperatorPublicFields().legalName}`,
+      `運営者：${op.legalNameDisplay}`,
     ],
   },
-];
+  ];
+}
