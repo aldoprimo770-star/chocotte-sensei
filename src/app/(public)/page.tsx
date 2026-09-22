@@ -66,6 +66,9 @@ const TESTIMONIALS = [
   },
 ] as const;
 
+/** 一時的にトップの「利用者の声」を隠す。true に戻せば同じデータで再表示できる */
+const SHOW_HOME_TESTIMONIALS = false;
+
 /**
  * トップページ
  * サービスの第一印象を担う各セクションを配置します。
@@ -224,19 +227,21 @@ export default async function HomePage() {
       </Section>
 
       {/* ⑨ 利用者の声 */}
-      <Section title="利用者の声">
-        <div className="mx-auto grid max-w-5xl gap-5 sm:grid-cols-3">
-          {TESTIMONIALS.map((t) => (
-            <Card key={t.text} className="h-full">
-              <p className="mb-4 text-sm leading-relaxed text-foreground">
-                「{t.text}」
-              </p>
-              <p className="text-sm font-medium text-foreground">{t.name}</p>
-              <p className="text-xs text-muted">{t.role}</p>
-            </Card>
-          ))}
-        </div>
-      </Section>
+      {SHOW_HOME_TESTIMONIALS && (
+        <Section title="利用者の声">
+          <div className="mx-auto grid max-w-5xl gap-5 sm:grid-cols-3">
+            {TESTIMONIALS.map((t) => (
+              <Card key={t.text} className="h-full">
+                <p className="mb-4 text-sm leading-relaxed text-foreground">
+                  「{t.text}」
+                </p>
+                <p className="text-sm font-medium text-foreground">{t.name}</p>
+                <p className="text-xs text-muted">{t.role}</p>
+              </Card>
+            ))}
+          </div>
+        </Section>
+      )}
 
       {/* ⑩ お問い合わせ導線 */}
       <section className="px-4 pb-20 sm:px-6 lg:px-8">
