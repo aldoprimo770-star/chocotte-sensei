@@ -1,7 +1,24 @@
+import type { SkillLevel, TargetAge } from "@prisma/client";
+import {
+  SELECTABLE_TEACHING_METHODS,
+  type SelectableTeachingMethod,
+} from "@/lib/teacher/teaching-methods";
 import type {
   TeacherProfileFormInput,
   TeacherProfileFormValues,
 } from "@/schemas/teacher.schema";
+
+/**
+ * z.preprocess により TeacherProfileFormInput 上のチェックボックス配列は
+ * 入力型が {} になる。正規化後は実行時どおり配列として扱う。
+ */
+export type NormalizedProfileFormValues = TeacherProfileFormInput & {
+  teachingMethods: SelectableTeachingMethod[];
+  categoryIds: string[];
+  targetAges: TargetAge[];
+  skillLevels: SkillLevel[];
+  isAcceptingStudents: boolean;
+};
 
 /**
  * フォーム送信値の正規化（入力型ゆれの吸収）
@@ -11,17 +28,13 @@ import type {
  */
 export function normalizeProfileFormValues(
   raw: TeacherProfileFormInput,
-): TeacherProfileFormInput {
+): NormalizedProfileFormValues {
   return {
     ...raw,
-    teachingMethods: toStringArray(raw.teachingMethods),
+    teachingMethods: toSelectableTeachingMethods(raw.teachingMethods),
     categoryIds: toStringArray(raw.categoryIds),
-    targetAges: toStringArray(
-      raw.targetAges,
-    ) as TeacherProfileFormInput["targetAges"],
-    skillLevels: toStringArray(
-      raw.skillLevels,
-    ) as TeacherProfileFormInput["skillLevels"],
+    targetAges: toStringArray(raw.targetAges) as TargetAge[],
+    skillLevels: toStringArray(raw.skillLevels) as SkillLevel[],
     isAcceptingStudents: raw.isAcceptingStudents === true,
   };
 }
@@ -81,4 +94,13 @@ function toStringArray(value: unknown): string[] {
   }
   if (typeof value === "string") return [value];
   return [];
+}
+
+function toSelectableTeachingMethods(
+  value: unknown,
+): SelectableTeachingMethod[] {
+  return toStringArray(value).filter(
+    (m): m is SelectableTeachingMethod =>
+      (SELECTABLE_TEACHING_METHODS as readonly string[]).includes(m),
+  );
 }
