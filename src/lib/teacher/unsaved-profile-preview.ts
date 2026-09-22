@@ -61,6 +61,14 @@ export function clearUnsavedProfilePreview(): void {
   sessionStorage.removeItem(STORAGE_KEY);
 }
 
+function asStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === "string");
+  }
+  if (typeof value === "string" && value) return [value];
+  return [];
+}
+
 function emptyToNull(value: string | undefined | null): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
@@ -94,7 +102,7 @@ export function overlayProfileWithFormValues(
 ): { profile: ProfileViewData; contact: TeacherContactInfo } {
   const input = normalizeProfileFormValues(formValuesToInput(form));
   const categoryById = new Map(categories.map((c) => [c.id, c.name]));
-  const teachingMethods = (input.teachingMethods ?? []).filter(
+  const teachingMethods = asStringArray(input.teachingMethods).filter(
     (m): m is "IN_PERSON" | "ONLINE" | "PHONE" =>
       m === "IN_PERSON" || m === "ONLINE" || m === "PHONE",
   );
@@ -110,8 +118,8 @@ export function overlayProfileWithFormValues(
     profileImageUrl: emptyToNull(input.profileImageUrl),
     priceMin: toOptionalInt(input.priceMin),
     priceMax: toOptionalInt(input.priceMax),
-    targetAges: (input.targetAges ?? []) as TargetAge[],
-    skillLevels: (input.skillLevels ?? []) as SkillLevel[],
+    targetAges: asStringArray(input.targetAges) as TargetAge[],
+    skillLevels: asStringArray(input.skillLevels) as SkillLevel[],
     gender: GENDERS.has(genderRaw) ? (genderRaw as Gender) : null,
     ageRange: AGE_RANGES.has(ageRaw) ? (ageRaw as AgeRange) : null,
     teachingYears: toOptionalInt(input.teachingYears),
@@ -119,12 +127,12 @@ export function overlayProfileWithFormValues(
     teachingMethod: null,
     isOnline: teachingMethodsIncludeOnline(teachingMethods),
     isAcceptingStudents: input.isAcceptingStudents === true,
-    categories: (input.categoryIds ?? [])
+    categories: asStringArray(input.categoryIds)
       .map((id) => categoryById.get(id))
       .filter((name): name is string => Boolean(name))
       .map((name) => ({ category: { name } })),
-    areas: (input.areas ?? [])
-      .filter((a) => a.prefecture?.trim())
+    areas: (Array.isArray(input.areas) ? input.areas : [])
+      .filter((a) => a?.prefecture?.trim())
       .map((a) => ({
         prefecture: a.prefecture,
         city: emptyToNull(a.city),
