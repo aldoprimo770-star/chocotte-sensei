@@ -62,16 +62,7 @@ export default async function LegalPage() {
   const items: readonly { label: string; value: ReactNode }[] = [
     {
       label: "販売事業者",
-      value: (
-        <>
-          <span>{op.legalNameDisplay}</span>
-          <span className="mt-1 block text-xs text-muted">
-            ※個人事業主の場合は戸籍上の氏名を表示します（サイト名「
-            {op.serviceName}
-            」のみの表示では足りません）。
-          </span>
-        </>
-      ),
+      value: op.legalNameDisplay,
     },
     {
       label: "サービス名",
